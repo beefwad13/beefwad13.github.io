@@ -5,7 +5,7 @@ let dodgeDistance = 180; // pixels
 let dodgeDuration = 120; // ms
 let lastDodgeTime = -Infinity;
 // Global audio volume (0.0 = mute, 1.0 = full volume)
-let audioVolume = 0.5;
+let audioVolume = 0.2;
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth < 800 ? 800 : (window.innerWidth > 1920 ? 1920 : window.innerWidth),
@@ -37,6 +37,7 @@ const config = {
 };
 
 
+// Player will be created from Player.js
 let player;
 let cursors;
 let speed = 400;
@@ -48,65 +49,19 @@ let bulletLifetime = 1000; // ms
 let lastShotTime = 0;
 // shootCooldown removed, now per-weapon
 
-// Player stats
-let playerStats = {
-    health: 100,
-    maxHealth: 100,
-    armor: 25,
-    stamina: 100,
-    maxStamina: 100
-};
+// Import Player class (Player.js must be loaded before main.js in index.html)
+// Remove duplicate declaration
+let playerStats; // Will point to player.stats
 
-// HUD elements
-let healthBarBg, healthBar, armorBarBg, armorBar, armorText, staminaBarBg, staminaBar, weaponText, ammoText;
-let updateHUD; // Function to update all HUD elements
+// HUD system
+let playerHUD;
 
-// Weapon system
-const WEAPONS = [
-    {
-        name: 'Pistol',
-        cooldown: 300,
-        bulletsPerShot: 1,
-        spread: 0,
-        color: 0x00ff00,
-        rateOfFire: 'semiauto',
-        magazineSize: 10,
-        ammo: 10,
-        reloading: false,
-        shootSound: 'pistol_shoot',
-        reloadSound: 'generic_reload'
-    },
-    {
-        name: 'Shotgun',
-        cooldown: 700,
-        bulletsPerShot: 5,
-        spread: 20, // degrees
-        color: 0xffcc00,
-        rateOfFire: 'semiauto',
-        magazineSize: 5,
-        ammo: 5,
-        reloading: false,
-        shootSound: 'shotgun_shoot',
-        reloadSound: 'shotgun_reload'
-    },
-    {
-        name: 'Assault Rifle',
-        cooldown: 100,
-        bulletsPerShot: 1,
-        spread: 0,
-        color: 0x3399ff,
-        rateOfFire: 'fullauto',
-        magazineSize: 20,
-        ammo: 20,
-        reloading: false,
-        shootSound: 'assault_rifle_shoot',
-        reloadSound: 'generic_reload'
-    }
-];
+// Weapon system is now in Weapons.js
 let currentWeaponIndex = 0;
-let currentWeapon = WEAPONS[currentWeaponIndex];
+let currentWeapon;
 
 function preload() {
+    // Weapons.js must be loaded before main.js in index.html
     // Preload weapon shoot and reload sounds
     this.load.audio('pistol_shoot', 'assets/audio/pistol_shoot.wav');
     this.load.audio('shotgun_shoot', 'assets/audio/shotgun_shoot.wav');
@@ -119,59 +74,207 @@ function preload() {
         frameWidth: 104, // 416 / 4 frames = 104px per frame
         frameHeight: 128
     });
+
+    // Preload crosshair sprite
+    this.load.image('crosshair', 'assets/sprites/player_xhair_cross.png');
 }
 
+
 function create() {
+    // --- ENEMY SPAWNER TOGGLE (K key) ---
+    let enemySpawningEnabled = false;
+    let enemySpawnerEvent = null;
+    const SPAWN_RADIUS = 400;
+    const SPAWN_MARGIN = 60;
+
+    function spawnEnemiesAroundPlayer(num) {
+        if (!window._enemies) return;
+        for (let i = 0; i < num; i++) {
+            // Spawn at a random angle and distance from player
+            const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+            const dist = Phaser.Math.Between(SPAWN_RADIUS, SPAWN_RADIUS + SPAWN_MARGIN);
+            let ex = player.sprite.x + Math.cos(angle) * dist;
+            let ey = player.sprite.y + Math.sin(angle) * dist;
+            // Clamp to world bounds
+            ex = Phaser.Math.Clamp(ex, 0, mapWidth);
+            ey = Phaser.Math.Clamp(ey, 0, mapHeight);
+            let enemy = new window.Enemy(player.scene, ex, ey, player.sprite);
+            window._enemies.push(enemy);
+            player.scene.enemyGroup.add(enemy.sprite);
+            player.scene.children.bringToTop(enemy.sprite);
+            enemy.sprite.setAlpha(1);
+        }
+    }
+
+    this.input.keyboard.on('keydown-K', () => {
+        enemySpawningEnabled = !enemySpawningEnabled;
+        if (enemySpawningEnabled) {
+            // Start interval event
+            enemySpawnerEvent = this.time.addEvent({
+                delay: 1000,
+                loop: true,
+                callback: () => {
+                    const n = Phaser.Math.Between(1, 3);
+                    spawnEnemiesAroundPlayer(n);
+                }
+            });
+            // Optional: show a message
+            const msg = this.add.text(player.sprite.x, player.sprite.y - 80, 'Enemy Spawning: ON', {
+                font: '18px Arial', fill: '#ff6666', fontStyle: 'bold', backgroundColor: '#222', padding: { left: 8, right: 8, top: 4, bottom: 4 }
+            }).setOrigin(0.5, 1).setDepth(2000);
+            this.tweens.add({ targets: msg, alpha: 0, duration: 1200, onComplete: () => msg.destroy() });
+        } else {
+            if (enemySpawnerEvent) enemySpawnerEvent.remove(false);
+            enemySpawnerEvent = null;
+            // Optional: show a message
+            const msg = this.add.text(player.sprite.x, player.sprite.y - 80, 'Enemy Spawning: OFF', {
+                font: '18px Arial', fill: '#cccccc', fontStyle: 'bold', backgroundColor: '#222', padding: { left: 8, right: 8, top: 4, bottom: 4 }
+            }).setOrigin(0.5, 1).setDepth(2000);
+            this.tweens.add({ targets: msg, alpha: 0, duration: 1200, onComplete: () => msg.destroy() });
+        }
+    });
+    // Add tooltip text in the top right corner
+    const tooltipText = this.add.text(
+        this.cameras.main.width - 24, // 24px from right edge
+        18, // 18px from top edge
+        'WASD = move, R = reload, Space = dodge, K = toggle enemies',
+        {
+            font: '16px Arial',
+            fill: '#cccccc',
+            backgroundColor: 'rgba(34,34,34,0.7)',
+            padding: { left: 8, right: 8, top: 4, bottom: 4 },
+            align: 'right',
+            fontStyle: 'bold'
+        }
+    ).setOrigin(1, 0).setScrollFactor(0).setDepth(2000);
+    // Keep tooltip in top right on resize
+    this.scale.on('resize', (gameSize) => {
+        tooltipText.x = gameSize.width - 24;
+    });
+    // Hide the default mouse cursor and use the crosshair sprite as a custom cursor
+    this.input.setDefaultCursor('none');
+    // Add crosshair sprite and make it follow the mouse pointer
+    const crosshair = this.add.image(0, 0, 'crosshair').setDepth(1000);
+    crosshair.setOrigin(0.5, 0.5);
+    crosshair.setScale(1);
+    crosshair.setScrollFactor(0);
+    // Update crosshair position every frame
+    this.input.on('pointermove', pointer => {
+        crosshair.x = pointer.x;
+        crosshair.y = pointer.y;
+    });
+    // Ensure crosshair is always on top
+    this.events.on('postupdate', () => {
+        crosshair.depth = 1000;
+    });
+    // --- BACKGROUND: Draw tiled background FIRST so it is always at the bottom ---
+    var tileSize = 64;
+    for (let x = 0; x < mapWidth; x += tileSize) {
+        for (let y = 0; y < mapHeight; y += tileSize) {
+            this.add.rectangle(x + tileSize/2, y + tileSize/2, tileSize, tileSize, (x+y)%128 === 0 ? 0x333333 : 0x444444);
+        }
+    }
+
+    // --- ENEMY ENGINE: Spawn enemies at the edge of the screen and make them move toward the player ---
+    let enemies = [];
+    const numEnemies = 3;
+    const margin = 40;
+    // We'll spawn enemies just outside the camera view, at a random edge
+    const cam = this.cameras.main;
+    for (let i = 0; i < numEnemies; i++) {
+        let edge = Phaser.Math.Between(0, 3); // 0=top, 1=right, 2=bottom, 3=left
+        let ex, ey;
+        if (edge === 0) { // top (above view)
+            ex = Phaser.Math.Between(cam.worldView.left + margin, cam.worldView.right - margin);
+            ey = cam.worldView.top - margin;
+        } else if (edge === 1) { // right (right of view)
+            ex = cam.worldView.right + margin;
+            ey = Phaser.Math.Between(cam.worldView.top + margin, cam.worldView.bottom - margin);
+        } else if (edge === 2) { // bottom (below view)
+            ex = Phaser.Math.Between(cam.worldView.left + margin, cam.worldView.right - margin);
+            ey = cam.worldView.bottom + margin;
+        } else { // left (left of view)
+            ex = cam.worldView.left - margin;
+            ey = Phaser.Math.Between(cam.worldView.top + margin, cam.worldView.bottom - margin);
+        }
+        // Clamp to world bounds just in case
+        ex = Phaser.Math.Clamp(ex, 0, mapWidth);
+        ey = Phaser.Math.Clamp(ey, 0, mapHeight);
+        let enemy = new window.Enemy(this, ex, ey, null); // playerRef set after player is created
+        enemies.push(enemy);
+        this.children.bringToTop(enemy.sprite);
+        enemy.sprite.setAlpha(1);
+    }
+    // Enable bullet-enemy collision (use a group for enemies for Phaser overlap)
+    this.enemyGroup = this.physics.add.group();
+    for (let enemy of enemies) {
+        this.enemyGroup.add(enemy.sprite);
+    }
+    // After player is created, set playerRef for all enemies
+    // Also, make enemies accessible in update()
+    this.time.delayedCall(0, () => {
+        for (let enemy of enemies) {
+            enemy.playerRef = player.sprite;
+        }
+        // Expose enemies globally for update()
+        window._enemies = enemies;
+    });
+
+    // Wait until bullets group is created before setting up overlap
+    this.time.delayedCall(0, () => {
+        this.physics.add.overlap(
+            bullets,
+            this.enemyGroup,
+            (bullet, enemySprite) => {
+                if (!bullet.active || !enemySprite.visible) return;
+                // Damage enemy and deactivate bullet
+                let enemyObj = enemySprite.enemyRef;
+                if (enemyObj && enemyObj.alive) {
+                    // Calculate knockback vector
+                    const impactVec = new Phaser.Math.Vector2(enemySprite.x - bullet.x, enemySprite.y - bullet.y).normalize().scale(40);
+                    // Determine weapon damage
+                    let dmg = 1;
+                    if (bullet && bullet.fillColor !== undefined) {
+                        // Match bullet color to weapon for damage
+                        for (let w of window.WEAPONS) {
+                            if (w.color === bullet.fillColor) {
+                                dmg = w.damage || 1;
+                                break;
+                            }
+                        }
+                    }
+                    // Show floating damage number
+                    const dmgText = this.add.text(enemySprite.x, enemySprite.y - 40, `-${dmg}`,
+                        {
+                            font: '20px Arial',
+                            fill: '#ffffff',
+                            stroke: '#000',
+                            strokeThickness: 3,
+                            fontStyle: 'bold'
+                        }
+                    ).setOrigin(0.5, 1).setDepth(1500);
+                    this.tweens.add({
+                        targets: dmgText,
+                        y: dmgText.y - 32,
+                        alpha: 0,
+                        duration: 600,
+                        ease: 'Cubic.Out',
+                        onComplete: () => dmgText.destroy()
+                    });
+                    // Pass knockback vector and duration to takeDamage
+                    enemyObj.takeDamage(dmg, { x: impactVec.x, y: impactVec.y, duration: 100 });
+                    bullet.setActive(false);
+                    bullet.setVisible(false);
+                    bullet.body.enable = false;
+                }
+            },
+            null,
+            this
+        );
+    });
 
     // Dodge on Space Bar
-    this.input.keyboard.on('keydown-SPACE', () => {
-        if (isDodging) return;
-        const now = this.time.now;
-        if (now - lastDodgeTime < dodgeCooldown) return;
-
-        // Require at least 40 stamina to dodge
-        if (playerStats.stamina < 40) return;
-
-        // Determine movement direction
-        let vx = 0, vy = 0;
-        if (cursors.left.isDown) vx = -1;
-        else if (cursors.right.isDown) vx = 1;
-        if (cursors.up.isDown) vy = -1;
-        else if (cursors.down.isDown) vy = 1;
-
-        // If not moving, dodge in last direction or do nothing
-        if (vx === 0 && vy === 0) return;
-
-        // Normalize direction
-        if (vx !== 0 && vy !== 0) {
-            vx *= 0.707;
-            vy *= 0.707;
-        }
-
-        isDodging = true;
-        lastDodgeTime = now;
-
-        // Decrease stamina by 40
-        setStamina(playerStats.stamina - 40);
-
-        // Calculate dodge target
-        const startX = player.x;
-        const startY = player.y;
-        const targetX = Phaser.Math.Clamp(startX + vx * dodgeDistance, 0 + 20, mapWidth - 20);
-        const targetY = Phaser.Math.Clamp(startY + vy * dodgeDistance, 0 + 20, mapHeight - 20);
-
-        // Tween player to target position
-        this.tweens.add({
-            targets: player,
-            x: targetX,
-            y: targetY,
-            duration: dodgeDuration,
-            ease: 'Cubic.Out',
-            onComplete: () => {
-                isDodging = false;
-            }
-        });
-    });
+    // (Space bar dodge handler removed: handled in Player class)
     
     // Weapon switching
     this.input.keyboard.on('keydown-ONE', () => { selectWeapon(0); });
@@ -199,90 +302,31 @@ function create() {
     });
 
     
-    // Unified HUD update function
-    updateHUD = function() {
-        // Health bar
-        if (healthBar && healthBarBg) {
-            healthBar.width = 200 * (playerStats.health / playerStats.maxHealth);
-            healthBar.fillColor = 0xff0000;
-        }
-        // Armor bar and text
-        if (armorBar && armorBarBg) {
-            armorBar.width = 200 * (playerStats.armor / 100); // Assuming max armor is 100 for bar
-            armorBar.fillColor = 0x3399ff;
-        }
-        if (armorText) {
-            armorText.setText(`Armor: ${playerStats.armor}`);
-        }
-        // Stamina bar
-        if (staminaBar && staminaBarBg) {
-            staminaBar.width = 200 * (playerStats.stamina / playerStats.maxStamina);
-        }
-        // Weapon and ammo
-        if (weaponText) {
-            let w = WEAPONS[currentWeaponIndex];
-            weaponText.setText(`Weapon: ${w.name}`);
-            if (typeof ammoText !== 'undefined') {
-                if (w.magazineSize === -1) {
-                    ammoText.setText('Ammo: ∞');
-                } else if (w.reloading) {
-                    ammoText.setText('Reloading...');
-                } else {
-                    // Visual magazine bar (e.g. [|||||     ])
-                    let magBar = '[';
-                    for (let i = 0; i < w.magazineSize; i++) {
-                        magBar += i < w.ammo ? '|' : ' ';
-                    }
-                    magBar += ']';
-                    ammoText.setText(`Ammo: ${w.ammo} / ${w.magazineSize}  ${magBar}`);
-                }
-            }
-        }
-    }
+
+    // Create Player instance
+    player = new Player(this, mapWidth / 2, mapHeight / 2);
+    playerStats = player.stats;
+
+    // PlayerHUD expects a reference to currentWeaponIndex (object with .value)
+    // HUD must be created AFTER camera is set up, or .setScrollFactor(0) won't work
+    let currentWeaponIndexRef = { value: currentWeaponIndex };
+    // Set currentWeapon from global WEAPONS
+    currentWeapon = window.WEAPONS[currentWeaponIndex];
+    // Set world bounds
+    this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
+    // Camera setup
+    this.cameras.main.startFollow(player.sprite, false, 1, 1);
+    this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
 
     // Weapon selection and HUD update (define globally, not inside create)
     function selectWeapon(index) {
+        currentWeaponIndexRef.value = index;
         currentWeaponIndex = index;
-        currentWeapon = WEAPONS[currentWeaponIndex];
+        currentWeapon = window.WEAPONS[currentWeaponIndex];
         updateHUD();
     }
 
-    // Call global updateWeaponHUD after weaponText is created
-    if (typeof updateHUD === 'function') {
-        updateHUD();
-    }
-
-    // Create tiled background using graphics
-    const tileSize = 64;
-    for (let x = 0; x < mapWidth; x += tileSize) {
-        for (let y = 0; y < mapHeight; y += tileSize) {
-            this.add.rectangle(x + tileSize/2, y + tileSize/2, tileSize, tileSize, (x+y)%128 === 0 ? 0x333333 : 0x444444);
-        }
-    }
-
-
-    // Create player sprite
-    // Place player in the center of the world
-    player = this.add.sprite(mapWidth / 2, mapHeight / 2, 'player', 0);
-    player.setDisplaySize(104, 128); // match frame size
-    this.physics.add.existing(player);
-    player.body.setCollideWorldBounds(true);
-
-    // Set world bounds
-    this.physics.world.setBounds(0, 0, mapWidth, mapHeight);
-
-    // Camera setup
-    // Camera: fixed on player, always centered
-    this.cameras.main.startFollow(player, false, 1, 1);
-    this.cameras.main.setBounds(0, 0, mapWidth, mapHeight);
-
-    // WASD controls
-    cursors = this.input.keyboard.addKeys({
-        up: Phaser.Input.Keyboard.KeyCodes.W,
-        down: Phaser.Input.Keyboard.KeyCodes.S,
-        left: Phaser.Input.Keyboard.KeyCodes.A,
-        right: Phaser.Input.Keyboard.KeyCodes.D
-    });
+    // WASD controls are now handled in Player class
 
     // Bullet group (pooling)
     bullets = this.physics.add.group({
@@ -291,38 +335,27 @@ function create() {
         runChildUpdate: true
     });
 
-
-
-    // --- HUD CREATION BLOCK (MOVED TO END) ---
-    // Place all HUD elements after player, camera, and world setup
-    var barLeft = 20;
-    healthBarBg = this.add.rectangle(barLeft, 30, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-    healthBar = this.add.rectangle(barLeft + 2, 30, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5);
-    armorBarBg = this.add.rectangle(barLeft, 54, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-    armorBar = this.add.rectangle(barLeft + 2, 54, 200, 12, 0x3399ff).setScrollFactor(0).setOrigin(0,0.5);
-    armorText = this.add.text(barLeft + 210, 46, `Armor: ${playerStats.armor}`, { font: '16px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0);
-    staminaBarBg = this.add.rectangle(barLeft, 74, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-    staminaBar = this.add.rectangle(barLeft + 2, 74, 200, 12, 0x33ff66).setScrollFactor(0).setOrigin(0,0.5);
-    // Weapon HUD
-    var weaponTextY = 100;
-    weaponText = this.add.text(barLeft, weaponTextY, `Weapon: ${WEAPONS[currentWeaponIndex].name}`,
-        { font: '20px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0).setOrigin(0, 0);
-    ammoText = this.add.text(barLeft, weaponTextY + 28, '', { font: '18px Arial', fill: '#fff', fontFamily: 'monospace' }).setScrollFactor(0).setOrigin(0, 0);
-    // --- END HUD CREATION BLOCK ---
-
+    // HUD creation is now handled by PlayerHUD
+    // Now create HUD (after camera)
+    // Make sure PlayerHUD is available and updateHUD is always defined
+    playerHUD = new PlayerHUD(this, playerStats, WEAPONS, currentWeaponIndexRef);
+    updateHUD = function() { playerHUD.updateHUD(); };
+    
+    // Call global updateWeaponHUD after weaponText is created
+    updateHUD();
 }
 
 // Stat update functions
 function setHealth(newHealth) {
-    playerStats.health = Phaser.Math.Clamp(newHealth, 0, playerStats.maxHealth);
+    player.setHealth(newHealth);
     if (typeof updateHUD === 'function') updateHUD();
 }
 function setArmor(newArmor) {
-    playerStats.armor = Math.max(0, newArmor);
+    player.setArmor(newArmor);
     if (typeof updateHUD === 'function') updateHUD();
 }
 function setStamina(newStamina) {
-    playerStats.stamina = Phaser.Math.Clamp(newStamina, 0, playerStats.maxStamina);
+    player.setStamina(newStamina);
     if (typeof updateHUD === 'function') updateHUD();
 }
 
@@ -376,8 +409,8 @@ function reloadWeapon(index) {
 
     // Calculate angle from player to mouse (world coordinates)
     const worldPoint = pointer.positionToCamera(this.cameras.main);
-    const dx = worldPoint.x - player.x;
-    const dy = worldPoint.y - player.y;
+    const dx = worldPoint.x - player.sprite.x;
+    const dy = worldPoint.y - player.sprite.y;
     const baseAngle = Math.atan2(dy, dx);
 
     for (let i = 0; i < currentWeapon.bulletsPerShot; i++) {
@@ -396,8 +429,8 @@ function reloadWeapon(index) {
         bullet.setSize(12, 12);
         bullet.setActive(true);
         bullet.setVisible(true);
-        bullet.x = player.x;
-        bullet.y = player.y;
+        bullet.x = player.sprite.x;
+        bullet.y = player.sprite.y;
         bullet.body.enable = true;
         bullet.body.setAllowGravity(false);
         bullet.body.setVelocity(Math.cos(angle) * bulletSpeed, Math.sin(angle) * bulletSpeed);
@@ -406,43 +439,18 @@ function reloadWeapon(index) {
 }
 
 function update(time, delta) {
-    // WASD movement (disable normal movement during dodge)
-    let vx = 0, vy = 0;
-    if (!isDodging) {
-        if (cursors.left.isDown) vx = -speed;
-        else if (cursors.right.isDown) vx = speed;
-        if (cursors.up.isDown) vy = -speed;
-        else if (cursors.down.isDown) vy = speed;
-        player.body.setVelocity(vx, vy);
-        if (vx !== 0 && vy !== 0) {
-            player.body.setVelocity(vx * 0.707, vy * 0.707); // Normalize diagonal
+
+    // Update all enemies to move toward the player
+    if (window._enemies) {
+        for (let enemy of window._enemies) {
+            if (enemy && typeof enemy.update === 'function') {
+                enemy.update();
+            }
         }
-    } else {
-        player.body.setVelocity(0, 0);
     }
 
-    // Set player sprite frame based on movement direction
-    if (vx === 0 && vy === 0) {
-        // Idle, default frame (down)
-        player.setFrame(0);
-    } else if (vy > 0 && Math.abs(vy) >= Math.abs(vx)) {
-        // Moving down
-        player.setFrame(0);
-    } else if (vy < 0 && Math.abs(vy) >= Math.abs(vx)) {
-        // Moving up
-        player.setFrame(1);
-    } else if (vx < 0 && Math.abs(vx) > Math.abs(vy)) {
-        // Moving left
-        player.setFrame(2);
-    } else if (vx > 0 && Math.abs(vx) > Math.abs(vy)) {
-        // Moving right
-        player.setFrame(3);
-    }
-
-    // Example: Regenerate stamina slowly
-    if (playerStats.stamina < playerStats.maxStamina) {
-        setStamina(playerStats.stamina + 10 * (delta/1000));
-    }
+    // Player movement and stamina regen handled in Player class
+    player.update(delta);
 
     // Always update HUD every frame
     if (typeof updateHUD === 'function') updateHUD();
