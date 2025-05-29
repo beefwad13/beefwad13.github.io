@@ -75,6 +75,12 @@ function preload() {
         frameHeight: 128
     });
 
+    // Preload enemy demon sprite sheet
+    this.load.spritesheet('enemy_demon', 'assets/sprites/enemy_demon1.png', {
+        frameWidth: 70, // 256/2 frames = 128 per frame
+        frameHeight: 128
+    });
+
     // Preload crosshair sprite
     this.load.image('crosshair', 'assets/sprites/player_xhair_cross.png');
 }
@@ -211,10 +217,12 @@ function create() {
         this.enemyGroup.add(enemy.sprite);
     }
     // After player is created, set playerRef for all enemies
-    // Also, make enemies accessible in update()
+    // Also, make enemies accessible in update()    
     this.time.delayedCall(0, () => {
         for (let enemy of enemies) {
             enemy.playerRef = player.sprite;
+            // Set player instance reference for experience gain
+            player.sprite.playerRef = player;
         }
         // Expose enemies globally for update()
         window._enemies = enemies;

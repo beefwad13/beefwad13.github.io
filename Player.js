@@ -11,13 +11,14 @@ class Player {
         this.dodgeCooldown = 800;
         this.dodgeDistance = 180;
         this.dodgeDuration = 120;
-        this.lastDodgeTime = -Infinity;
-        this.stats = {
+        this.lastDodgeTime = -Infinity;        this.stats = {
             health: 100,
             maxHealth: 100,
             armor: 25,
             stamina: 100,
-            maxStamina: 100
+            maxStamina: 100,
+            level: 1,
+            experience: 0
         };
         this.cursors = scene.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -72,6 +73,45 @@ class Player {
     }
     setStamina(newStamina) {
         this.stats.stamina = Phaser.Math.Clamp(newStamina, 0, this.stats.maxStamina);
+    }
+
+    getExperienceToNextLevel() {
+        return this.stats.level * 100;
+    }
+
+    gainExperience(amount) {
+        this.stats.experience += amount;
+        while (this.stats.experience >= this.getExperienceToNextLevel()) {
+            this.levelUp();
+        }
+    }
+
+    levelUp() {
+        this.stats.experience -= this.getExperienceToNextLevel();
+        this.stats.level++;
+        // Show level up text
+        const levelUpText = this.scene.add.text(
+            this.sprite.x, 
+            this.sprite.y - 60, 
+            'Level Up!', 
+            { 
+                font: '24px Arial',
+                fill: '#ffff00',
+                stroke: '#000',
+                strokeThickness: 4,
+                fontStyle: 'bold'
+            }
+        ).setOrigin(0.5, 1).setDepth(2000);
+        
+        // Add floating animation and fade out
+        this.scene.tweens.add({
+            targets: levelUpText,
+            y: levelUpText.y - 40,
+            alpha: 0,
+            duration: 1500,
+            ease: 'Cubic.Out',
+            onComplete: () => levelUpText.destroy()
+        });
     }
 
     update(delta) {

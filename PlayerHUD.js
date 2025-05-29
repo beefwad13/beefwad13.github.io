@@ -6,25 +6,41 @@ class PlayerHUD {
         this.weapons = weapons;
         this.currentWeaponIndexRef = currentWeaponIndexRef;
         this.createHUD();
-    }
-
-    createHUD() {
+    }    createHUD() {
         const barLeft = 20;
-        this.healthBarBg = this.scene.add.rectangle(barLeft, 30, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-        this.healthBar = this.scene.add.rectangle(barLeft + 2, 30, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5);
-        this.armorBarBg = this.scene.add.rectangle(barLeft, 54, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-        this.armorBar = this.scene.add.rectangle(barLeft + 2, 54, 200, 12, 0x3399ff).setScrollFactor(0).setOrigin(0,0.5);
-        this.armorText = this.scene.add.text(barLeft + 210, 46, `Armor: ${this.playerStats.armor}`, { font: '16px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0);
-        this.staminaBarBg = this.scene.add.rectangle(barLeft, 74, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-        this.staminaBar = this.scene.add.rectangle(barLeft + 2, 74, 200, 12, 0x33ff66).setScrollFactor(0).setOrigin(0,0.5);
+        // Level and XP text at the top
+        this.levelText = this.scene.add.text(barLeft, 10, 'Level 1', { 
+            font: '20px Arial', 
+            fill: '#ffff00',
+            fontStyle: 'bold' 
+        }).setScrollFactor(0);
+        
+        this.expText = this.scene.add.text(barLeft + 100, 10, 'XP: 0/100', { 
+            font: '18px Arial', 
+            fill: '#ffff99'
+        }).setScrollFactor(0);
+
+        this.healthBarBg = this.scene.add.rectangle(barLeft, 40, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
+        this.healthBar = this.scene.add.rectangle(barLeft + 2, 40, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5);        this.armorBarBg = this.scene.add.rectangle(barLeft, 64, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
+        this.armorBar = this.scene.add.rectangle(barLeft + 2, 64, 200, 12, 0x3399ff).setScrollFactor(0).setOrigin(0,0.5);
+        this.armorText = this.scene.add.text(barLeft + 210, 56, `Armor: ${this.playerStats.armor}`, { font: '16px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0);
+        this.staminaBarBg = this.scene.add.rectangle(barLeft, 84, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
+        this.staminaBar = this.scene.add.rectangle(barLeft + 2, 84, 200, 12, 0x33ff66).setScrollFactor(0).setOrigin(0,0.5);
         // Weapon HUD
-        const weaponTextY = 100;
+        const weaponTextY = 110;
         this.weaponText = this.scene.add.text(barLeft, weaponTextY, `Weapon: ${this.weapons[this.currentWeaponIndexRef.value].name}`,
             { font: '20px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0).setOrigin(0, 0);
         this.ammoText = this.scene.add.text(barLeft, weaponTextY + 28, '', { font: '18px Arial', fill: '#fff', fontFamily: 'monospace' }).setScrollFactor(0).setOrigin(0, 0);
-    }
-
-    updateHUD() {
+    }    updateHUD() {
+        // Level and Experience
+        if (this.levelText) {
+            this.levelText.setText(`Level ${this.playerStats.level}`);
+        }
+        if (this.expText) {
+            const nextLevelXP = this.playerStats.level * 100;
+            this.expText.setText(`XP: ${this.playerStats.experience}/${nextLevelXP}`);
+        }
+        
         // Health bar
         if (this.healthBar && this.healthBarBg) {
             this.healthBar.width = 200 * (this.playerStats.health / this.playerStats.maxHealth);

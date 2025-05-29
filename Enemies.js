@@ -5,7 +5,8 @@ class Enemy {
     constructor(scene, x, y, playerRef) {
         this.scene = scene;
         this.health = 3;
-        this.sprite = scene.add.rectangle(x, y, 40, 40, 0xff2222);
+        this.sprite = scene.add.sprite(x, y, 'enemy_demon', 0);
+        this.sprite.setDisplaySize(70, 128); // Keep original proportions
         scene.physics.add.existing(this.sprite);
         this.sprite.body.setCollideWorldBounds(true);
         this.sprite.enemyRef = this; // Reference for callbacks
@@ -16,10 +17,18 @@ class Enemy {
         this.isKnockback = false;
         this.knockbackTimer = 0;
         this.knockbackVelocity = { x: 0, y: 0 };
-    }
-
-    update() {
+        // Flash state
+        this.isFlashing = false;
+        this.flashTimer = 0;
+    }    update() {
         if (!this.alive || !this.playerRef) return;
+
+        // Check flash state and revert to normal frame if flash is done
+        if (this.isFlashing && this.scene.time.now >= this.flashTimer) {
+            this.isFlashing = false;
+            this.sprite.setFrame(0); // Normal frame
+        }
+
         // If in knockback, apply knockback velocity and decrement timer
         if (this.isKnockback) {
             this.sprite.body.setVelocity(this.knockbackVelocity.x, this.knockbackVelocity.y);
@@ -30,6 +39,7 @@ class Enemy {
             }
             return;
         }
+
         // Move towards player
         const dx = this.playerRef.x - this.sprite.x;
         const dy = this.playerRef.y - this.sprite.y;
@@ -38,6 +48,11 @@ class Enemy {
             const vx = (dx / dist) * this.speed;
             const vy = (dy / dist) * this.speed;
             this.sprite.body.setVelocity(vx, vy);
+            
+            // Flip sprite based on movement direction
+            if (vx !== 0) {
+                this.sprite.setFlipX(vx < 0);
+            }
         } else {
             this.sprite.body.setVelocity(0, 0);
         }
@@ -47,10 +62,14 @@ class Enemy {
      * @param {number} amount - Damage amount
      * @param {object} [knockback] - Optional knockback vector {x, y}
      * @param {number} [knockback.duration] - Duration in ms
-     */
-    takeDamage(amount, knockback) {
+     */    takeDamage(amount, knockback) {
         if (!this.alive) return;
         this.health -= amount;
+        // Set damage frame and flash timer
+        this.sprite.setFrame(1); // Damage frame
+        this.isFlashing = true;
+        this.flashTimer = this.scene.time.now + 100; // Flash for 100ms
+
         if (knockback && knockback.x !== undefined && knockback.y !== undefined) {
             this.isKnockback = true;
             this.knockbackVelocity = { x: knockback.x, y: knockback.y };
@@ -59,12 +78,15 @@ class Enemy {
         if (this.health <= 0) {
             this.die();
         }
-    }
-
-    die() {
+    }    die() {
         this.alive = false;
         this.sprite.setVisible(false);
         this.sprite.body.enable = false;
+        
+        // Grant experience to the player when enemy dies
+        if (this.playerRef && this.playerRef.playerRef) {
+            this.playerRef.playerRef.gainExperience(10);
+        }
     }
 }
 
