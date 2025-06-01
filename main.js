@@ -6,16 +6,6 @@ let dodgeDuration = 120; // ms
 let lastDodgeTime = -Infinity;
 // Global audio volume (0.0 = mute, 1.0 = full volume)
 let audioVolume = 0.2;
-// Helper function to detect mobile devices
-function isMobileDevice() {
-    return (typeof window.orientation !== "undefined") || (navigator.userAgent.indexOf('IEMobile') !== -1);
-}
-
-// Virtual joystick variables
-let leftJoystick = null;
-let rightJoystick = null;
-let isUsingVirtualControls = false;
-
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth < 800 ? 800 : (window.innerWidth > 1920 ? 1920 : window.innerWidth),
@@ -32,14 +22,6 @@ const config = {
             width: 1920,
             height: 1080
         }
-    },    plugins: {
-        scene: [
-            {
-                key: 'rexVirtualJoystick',
-                plugin: rexvirtualjoystickplugin,
-                mapping: 'vjoy'
-            }
-        ]
     },
     physics: {
         default: 'arcade',
@@ -381,45 +363,9 @@ function create() {
         }
     });
 
-    // Create Player instance
+        // Create Player instance
     player = new Player(this, mapWidth / 2, mapHeight / 2);
     playerStats = player.stats;
-
-    // Setup virtual joysticks for mobile
-    if (isMobileDevice()) {
-        isUsingVirtualControls = true;
-
-        // Create left joystick for movement
-        leftJoystick = this.vjoy.add({
-            x: 150,
-            y: this.cameras.main.height - 150,
-            radius: 100,
-            base: this.add.circle(0, 0, 100, 0x000000, 0.5),
-            thumb: this.add.circle(0, 0, 50, 0xcccccc, 0.7),
-            dir: '8dir',
-            forceMin: 16,
-        }).setScrollFactor(0).setDepth(2000);
-
-        // Create right joystick for shooting
-        rightJoystick = this.vjoy.add({
-            x: this.cameras.main.width - 150,
-            y: this.cameras.main.height - 150,
-            radius: 100,
-            base: this.add.circle(0, 0, 100, 0x000000, 0.5),
-            thumb: this.add.circle(0, 0, 50, 0xcccccc, 0.7),
-            dir: '8dir',
-            forceMin: 16,
-        }).setScrollFactor(0).setDepth(2000);
-
-        // Update joystick positions on resize
-        this.scale.on('resize', (gameSize) => {
-            leftJoystick.setPosition(150, gameSize.height - 150);
-            rightJoystick.setPosition(gameSize.width - 150, gameSize.height - 150);
-        });
-
-        // Hide mouse cursor on mobile since we're using virtual controls
-        this.input.setDefaultCursor('none');
-    }
     
     // Spawn test items for pickups testing
     this.spawnArmorPickup(mapWidth / 2 + 250, mapHeight / 2);      // Armor vest
@@ -763,31 +709,6 @@ function reloadWeapon(index) {
 }
 
 function update(time, delta) {
-    // Handle virtual joystick input on mobile
-    if (isUsingVirtualControls) {
-        // Movement joystick
-        if (leftJoystick && leftJoystick.force > 16) {
-            // Convert joystick angle to velocity
-            const leftVelocity = new Phaser.Math.Vector2();
-            leftVelocity.setToPolar(leftJoystick.rotation, speed);
-            player.sprite.body.setVelocity(leftVelocity.x, leftVelocity.y);
-        } else if (leftJoystick) {
-            player.sprite.body.setVelocity(0, 0);
-        }
-
-        // Shooting joystick
-        if (rightJoystick && rightJoystick.force > 16) {
-            // Create a mock pointer position for the shooting direction
-            const mockPointer = {
-                x: player.sprite.x + Math.cos(rightJoystick.rotation) * 100,
-                y: player.sprite.y + Math.sin(rightJoystick.rotation) * 100,
-                positionToCamera: function(camera) {
-                    return { x: this.x, y: this.y };
-                }
-            };
-            shootBullet.call(this, mockPointer);
-        }
-    }
 
     // Update all enemies to move toward the player
     if (window._enemies) {
