@@ -6,6 +6,16 @@ let dodgeDuration = 120; // ms
 let lastDodgeTime = -Infinity;
 // Global audio volume (0.0 = mute, 1.0 = full volume)
 let audioVolume = 0.2;
+// Helper function to detect mobile devices
+function isMobileDevice() {
+    return (typeof window.orientation !== "undefined") || (navigator.userAgent.indexOf('IEMobile') !== -1);
+}
+
+// Virtual joystick variables
+let leftJoystick = null;
+let rightJoystick = null;
+let isUsingVirtualControls = false;
+
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth < 800 ? 800 : (window.innerWidth > 1920 ? 1920 : window.innerWidth),
@@ -22,6 +32,14 @@ const config = {
             width: 1920,
             height: 1080
         }
+    },    plugins: {
+        scene: [
+            {
+                key: 'rexVirtualJoystick',
+                plugin: rexvirtualjoystickplugin,
+                mapping: 'vjoy'
+            }
+        ]
     },
     physics: {
         default: 'arcade',
@@ -45,7 +63,7 @@ let mapWidth = 2560;
 let mapHeight = 2560;
 let bullets;
 let bulletSpeed = 600;
-let bulletLifetime = 1000; // ms
+let bulletLifetime = 1200; // ms
 let lastShotTime = 0;
 // shootCooldown removed, now per-weapon
 
@@ -68,6 +86,16 @@ function preload() {
     this.load.audio('assault_rifle_shoot', 'assets/audio/assault_rifle_shoot.wav');
     this.load.audio('generic_reload', 'assets/audio/generic_reload.wav');
     this.load.audio('shotgun_reload', 'assets/audio/shotgun_reload.wav');
+    this.load.audio('bullet_hit', 'assets/audio/bullet_hit1.wav');
+    this.load.audio('bullet_hit_kill', 'assets/audio/bullet_hit2.wav');
+    this.load.audio('player_die', 'assets/audio/ba_die2.wav');
+    this.load.audio('pickup_sound', 'assets/audio/ammopickup2.wav');
+    this.load.audio('pickup_sound_small', 'assets/audio/ammopickup1.wav');
+
+    // Item sprites
+    this.load.image('item_armor', 'assets/sprites/item_armor.png');
+    this.load.image('item_armor_shard', 'assets/sprites/item_armor_shard.png');
+    this.load.image('item_medkit', 'assets/sprites/item_medkit.png');
 
     // Preload player sprite sheet
     this.load.spritesheet('player', 'assets/sprites/player_sprite.png', {
@@ -87,6 +115,45 @@ function preload() {
 
 
 function create() {
+    // --- ITEM SYSTEM ---
+    this.itemGroup = this.physics.add.group();    // Helper function to create floating items
+    function createFloatingItem(x, y, spriteKey, itemType, size = 64) {
+        const item = this.add.sprite(x, y, spriteKey);
+        item.setDisplaySize(size, size);
+        this.itemGroup.add(item);
+        this.children.bringToTop(item);
+        
+        // Add gentle floating animation
+        this.tweens.add({
+            targets: item,
+            y: item.y - 10,
+            duration: 1000,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.InOut'
+        });
+
+        item.itemType = itemType;
+        return item;
+    }
+
+    function spawnArmorPickup(x, y) {
+        return createFloatingItem.call(this, x, y, 'item_armor', 'armor');
+    }
+
+    function spawnArmorShardPickup(x, y) {
+        return createFloatingItem.call(this, x, y, 'item_armor_shard', 'armor_shard', 48);
+    }
+
+    function spawnMedkitPickup(x, y) {
+        return createFloatingItem.call(this, x, y, 'item_medkit', 'medkit');
+    }
+
+    // Add to scene for use in other functions
+    this.spawnArmorPickup = spawnArmorPickup;
+    this.spawnArmorShardPickup = spawnArmorShardPickup;
+    this.spawnMedkitPickup = spawnMedkitPickup;
+
     // --- ENEMY SPAWNER TOGGLE (K key) ---
     let enemySpawningEnabled = false;
     let enemySpawnerEvent = null;
@@ -183,7 +250,7 @@ function create() {
 
     // --- ENEMY ENGINE: Spawn enemies at the edge of the screen and make them move toward the player ---
     let enemies = [];
-    const numEnemies = 3;
+    const numEnemies = 10;
     const margin = 40;
     // We'll spawn enemies just outside the camera view, at a random edge
     const cam = this.cameras.main;
@@ -251,6 +318,11 @@ function create() {
                             }
                         }
                     }
+                    
+                    // Play bullet hit sound - use kill sound if damage will kill enemy
+                    const isKillingBlow = enemyObj.health <= dmg;
+                    this.sound.play(isKillingBlow ? 'bullet_hit_kill' : 'bullet_hit', { volume: audioVolume });
+
                     // Show floating damage number
                     const dmgText = this.add.text(enemySprite.x, enemySprite.y - 40, `-${dmg}`,
                         {
@@ -309,11 +381,56 @@ function create() {
         }
     });
 
-    
-
     // Create Player instance
     player = new Player(this, mapWidth / 2, mapHeight / 2);
     playerStats = player.stats;
+
+    // Setup virtual joysticks for mobile
+    if (isMobileDevice()) {
+        isUsingVirtualControls = true;
+
+        // Create left joystick for movement
+        leftJoystick = this.vjoy.add({
+            x: 150,
+            y: this.cameras.main.height - 150,
+            radius: 100,
+            base: this.add.circle(0, 0, 100, 0x000000, 0.5),
+            thumb: this.add.circle(0, 0, 50, 0xcccccc, 0.7),
+            dir: '8dir',
+            forceMin: 16,
+        }).setScrollFactor(0).setDepth(2000);
+
+        // Create right joystick for shooting
+        rightJoystick = this.vjoy.add({
+            x: this.cameras.main.width - 150,
+            y: this.cameras.main.height - 150,
+            radius: 100,
+            base: this.add.circle(0, 0, 100, 0x000000, 0.5),
+            thumb: this.add.circle(0, 0, 50, 0xcccccc, 0.7),
+            dir: '8dir',
+            forceMin: 16,
+        }).setScrollFactor(0).setDepth(2000);
+
+        // Update joystick positions on resize
+        this.scale.on('resize', (gameSize) => {
+            leftJoystick.setPosition(150, gameSize.height - 150);
+            rightJoystick.setPosition(gameSize.width - 150, gameSize.height - 150);
+        });
+
+        // Hide mouse cursor on mobile since we're using virtual controls
+        this.input.setDefaultCursor('none');
+    }
+    
+    // Spawn test items for pickups testing
+    this.spawnArmorPickup(mapWidth / 2 + 250, mapHeight / 2);      // Armor vest
+    this.spawnMedkitPickup(mapWidth / 2 + 250, mapHeight / 2 - 100); // Medkit above armor vest
+    // Spawn armor shards below armor vest
+    for (let i = 0; i < 20; i++) {
+        this.spawnArmorShardPickup(
+            mapWidth / 2 + 250 + (i % 5) * 30 - 60, // 5 columns
+            mapHeight / 2 + 100 + Math.floor(i / 5) * 30 // 4 rows
+        );
+    }
 
     // PlayerHUD expects a reference to currentWeaponIndex (object with .value)
     // HUD must be created AFTER camera is set up, or .setScrollFactor(0) won't work
@@ -341,7 +458,101 @@ function create() {
         classType: Phaser.GameObjects.Rectangle,
         maxSize: 50,
         runChildUpdate: true
-    });
+    });    // Setup item pickup collision
+    this.physics.add.overlap(
+        player.sprite,
+        this.itemGroup,
+        (playerSprite, item) => {
+            if (!item.active) return;
+            
+            let canPickup = false;
+            let handled = true;
+            let pickupText = '';
+            let textColor = '#ffffff';
+
+            // Check if player can pick up the item based on current stats
+            switch (item.itemType) {
+                case 'armor':
+                    canPickup = player.stats.armor < 100;
+                    break;
+                case 'armor_shard':
+                    canPickup = player.stats.armor < 100;
+                    break;
+                case 'medkit':
+                    canPickup = player.stats.health < player.stats.maxHealth;
+                    break;
+                default:
+                    canPickup = true;
+                    break;
+            }
+
+            // Only process pickup if the player can use it
+            if (canPickup) {
+                // Immediately disable collision by marking inactive
+                item.active = false;
+
+                // Handle different item types
+                switch (item.itemType) {
+                    case 'armor':
+                        player.setArmor(100);
+                        this.sound.play('pickup_sound', { volume: audioVolume });
+                        pickupText = 'Full Armor';
+                        textColor = '#3399ff'; // Blue for armor
+                        break;
+                    case 'armor_shard':
+                        player.setArmor(Math.min(100, player.stats.armor + 5));
+                        this.sound.play('pickup_sound_small', { volume: audioVolume });
+                        pickupText = '+5 Armor';
+                        textColor = '#3399ff'; // Blue for armor
+                        break;
+                    case 'medkit':
+                        player.setHealth(Math.min(player.stats.maxHealth, player.stats.health + 25));
+                        this.sound.play('pickup_sound_small', { volume: audioVolume });
+                        pickupText = '+25 Health';
+                        textColor = '#ff3333'; // Red for health
+                        break;
+                    default:
+                        handled = false;
+                        break;
+                }
+
+                // Show floating pickup text
+                if (pickupText) {
+                    const text = this.add.text(player.sprite.x, player.sprite.y - 60, pickupText, {
+                        font: '32px Arial',
+                        fill: textColor,
+                        stroke: '#000',
+                        strokeThickness: 3,
+                        fontStyle: 'bold'
+                    }).setOrigin(0.5, 1).setDepth(2000);
+
+                    this.tweens.add({
+                        targets: text,
+                        y: text.y - 40,
+                        alpha: 0,
+                        duration: 1000,
+                        ease: 'Cubic.Out',
+                        onComplete: () => text.destroy()
+                    });
+                }
+                
+                if (handled) {
+                    // Add pickup effect and destroy item
+                    this.tweens.add({
+                        targets: item,
+                        scaleX: 0,
+                        scaleY: 0,
+                        alpha: 0,
+                        duration: 200,
+                        ease: 'Back.In',
+                        onComplete: () => item.destroy()
+                    });
+                }
+            }
+        },
+        null,
+        this
+    );
 
     // HUD creation is now handled by PlayerHUD
     // Now create HUD (after camera)
@@ -351,6 +562,30 @@ function create() {
     
     // Call global updateWeaponHUD after weaponText is created
     updateHUD();
+
+    // Setup enemy-player collision
+    this.time.delayedCall(0, () => {
+        this.physics.add.overlap(
+            player.sprite,
+            this.enemyGroup,
+            (playerSprite, enemySprite) => {
+                // Only damage the player if the enemy is alive
+                let enemyObj = enemySprite.enemyRef;
+                if (enemyObj && enemyObj.alive) {                    // Calculate knockback vector away from player
+                    const knockbackVec = new Phaser.Math.Vector2(enemySprite.x - playerSprite.x, enemySprite.y - playerSprite.y).normalize().scale(60);                    // Apply knockback to enemy with longer stun duration
+                    enemyObj.takeDamage(0, { x: knockbackVec.x, y: knockbackVec.y, duration: 400 });
+                      // Deal damage to player (enemies deal 10 damage)
+                    // Only play hit sound if damage was actually dealt (not invulnerable)
+                    if (!player.isInvulnerable) {
+                        this.sound.play('bullet_hit', { volume: audioVolume });
+                    }
+                    player.takeDamage(10);
+                }
+            },
+            null,
+            this
+        );
+    });
 }
 
 // Stat update functions
@@ -400,15 +635,96 @@ function reloadWeapon(index) {
     if (w.reloading || w.magazineSize === -1) return;
     w.reloading = true;
     if (typeof updateHUD === 'function') updateHUD();
-    // Play reload sound
-    if (w.reloadSound && this && this.sound) {
-        this.sound.play(w.reloadSound, { volume: audioVolume });
+      // Create reload progress bar
+    const barWidth = 80;
+    const barHeight = 12;
+    const barY = 80; // Distance below player sprite (adjusted for 128px tall sprite)
+    
+    // Background of progress bar
+    const reloadBarBg = this.add.rectangle(
+        player.sprite.x,
+        player.sprite.y + barY,
+        barWidth,
+        barHeight,
+        0x000000,
+        0.8
+    ).setDepth(999);
+    
+    // The progress bar itself
+    const reloadBar = this.add.rectangle(
+        player.sprite.x - barWidth/2,
+        player.sprite.y + barY,
+        0, // Start at width 0
+        barHeight - 2,
+        0x00ff00,
+        1
+    ).setDepth(999);
+    reloadBar.setOrigin(0, 0.5); // Set origin to left center for easier width animation
+
+    // Animate the progress bar
+    this.tweens.add({
+        targets: reloadBar,
+        width: barWidth,
+        duration: w.reloadTime,
+        ease: 'Linear',
+        onComplete: () => {
+            reloadBarBg.destroy();
+            reloadBar.destroy();
+        }
+    });
+
+    // Update bar position when player moves
+    const updateBarPosition = () => {
+        if (reloadBarBg && reloadBarBg.active) {
+            reloadBarBg.x = player.sprite.x;
+            reloadBarBg.y = player.sprite.y + barY;
+            reloadBar.x = player.sprite.x - barWidth/2;
+            reloadBar.y = player.sprite.y + barY;
+        }
+    };
+
+    // Add update callback
+    const updateEvent = this.events.addListener('postupdate', updateBarPosition);    // Play reload sound(s) and calculate total reload time
+    let totalReloadTime = w.reloadTime;
+    if (w.name === 'Shotgun') {
+        // For shotgun, reload time scales with number of shells needed
+        const shellsToReload = w.magazineSize - w.ammo;
+        totalReloadTime = w.reloadTime * shellsToReload;
+        
+        // Play reload sound for each shell
+        for (let i = 0; i < shellsToReload; i++) {
+            this.time.delayedCall(i * w.reloadTime, () => {
+                if (w.reloadSound && this && this.sound) {
+                    this.sound.play(w.reloadSound, { volume: audioVolume });
+                }
+            });
+        }
+    } else {
+        // Other weapons play reload sound once
+        if (w.reloadSound && this && this.sound) {
+            this.sound.play(w.reloadSound, { volume: audioVolume });
+        }
     }
+
+    // Adjust progress bar duration to match total reload time
+    this.tweens.killTweensOf(reloadBar);
+    this.tweens.add({
+        targets: reloadBar,
+        width: barWidth,
+        duration: totalReloadTime,
+        ease: 'Linear',
+        onComplete: () => {
+            reloadBarBg.destroy();
+            reloadBar.destroy();
+        }
+    });
+
     setTimeout(() => {
         w.ammo = w.magazineSize;
         w.reloading = false;
+        this.events.removeListener('postupdate', updateBarPosition);
         if (typeof updateHUD === 'function') updateHUD();
-    }, 1200); // 1.2s reload time
+    }, totalReloadTime);
 }
     // Manual reload (R key)
     this.input.keyboard.on('keydown-R', () => {
@@ -447,6 +763,31 @@ function reloadWeapon(index) {
 }
 
 function update(time, delta) {
+    // Handle virtual joystick input on mobile
+    if (isUsingVirtualControls) {
+        // Movement joystick
+        if (leftJoystick && leftJoystick.force > 16) {
+            // Convert joystick angle to velocity
+            const leftVelocity = new Phaser.Math.Vector2();
+            leftVelocity.setToPolar(leftJoystick.rotation, speed);
+            player.sprite.body.setVelocity(leftVelocity.x, leftVelocity.y);
+        } else if (leftJoystick) {
+            player.sprite.body.setVelocity(0, 0);
+        }
+
+        // Shooting joystick
+        if (rightJoystick && rightJoystick.force > 16) {
+            // Create a mock pointer position for the shooting direction
+            const mockPointer = {
+                x: player.sprite.x + Math.cos(rightJoystick.rotation) * 100,
+                y: player.sprite.y + Math.sin(rightJoystick.rotation) * 100,
+                positionToCamera: function(camera) {
+                    return { x: this.x, y: this.y };
+                }
+            };
+            shootBullet.call(this, mockPointer);
+        }
+    }
 
     // Update all enemies to move toward the player
     if (window._enemies) {

@@ -12,10 +12,10 @@ window.WEAPONS = [
         reloading: false,
         shootSound: 'pistol_shoot',
         reloadSound: 'generic_reload',
+        reloadTime: 1000, // 1 second in milliseconds
         damage: 1
     },
-    {
-        name: 'Shotgun',
+    {        name: 'Shotgun',
         cooldown: 700,
         bulletsPerShot: 5,
         spread: 20, // degrees
@@ -26,6 +26,7 @@ window.WEAPONS = [
         reloading: false,
         shootSound: 'shotgun_shoot',
         reloadSound: 'shotgun_reload',
+        reloadTime: 600, // 600ms per shell reload
         damage: 1
     },
     {
@@ -40,6 +41,7 @@ window.WEAPONS = [
         reloading: false,
         shootSound: 'assault_rifle_shoot',
         reloadSound: 'generic_reload',
+        reloadTime: 1500, // 1.5 seconds in milliseconds
         damage: 2
     }
 ];

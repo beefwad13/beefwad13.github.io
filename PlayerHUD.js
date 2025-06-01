@@ -18,10 +18,10 @@ class PlayerHUD {
         this.expText = this.scene.add.text(barLeft + 100, 10, 'XP: 0/100', { 
             font: '18px Arial', 
             fill: '#ffff99'
-        }).setScrollFactor(0);
-
-        this.healthBarBg = this.scene.add.rectangle(barLeft, 40, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
-        this.healthBar = this.scene.add.rectangle(barLeft + 2, 40, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5);        this.armorBarBg = this.scene.add.rectangle(barLeft, 64, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
+        }).setScrollFactor(0);        this.healthBarBg = this.scene.add.rectangle(barLeft, 40, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
+        this.healthBar = this.scene.add.rectangle(barLeft + 2, 40, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5);
+        this.healthText = this.scene.add.text(barLeft + 210, 32, `Health: ${this.playerStats.health}`, { font: '16px Arial', fill: '#ff6666', fontStyle: 'bold' }).setScrollFactor(0);
+        this.armorBarBg = this.scene.add.rectangle(barLeft, 64, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
         this.armorBar = this.scene.add.rectangle(barLeft + 2, 64, 200, 12, 0x3399ff).setScrollFactor(0).setOrigin(0,0.5);
         this.armorText = this.scene.add.text(barLeft + 210, 56, `Armor: ${this.playerStats.armor}`, { font: '16px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0);
         this.staminaBarBg = this.scene.add.rectangle(barLeft, 84, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5);
@@ -40,11 +40,13 @@ class PlayerHUD {
             const nextLevelXP = this.playerStats.level * 100;
             this.expText.setText(`XP: ${this.playerStats.experience}/${nextLevelXP}`);
         }
-        
-        // Health bar
+          // Health bar and text
         if (this.healthBar && this.healthBarBg) {
             this.healthBar.width = 200 * (this.playerStats.health / this.playerStats.maxHealth);
             this.healthBar.fillColor = 0xff0000;
+        }
+        if (this.healthText) {
+            this.healthText.setText(`Health: ${this.playerStats.health}`);
         }
         // Armor bar and text
         if (this.armorBar && this.armorBarBg) {

@@ -11,7 +11,8 @@ class Player {
         this.dodgeCooldown = 800;
         this.dodgeDistance = 180;
         this.dodgeDuration = 120;
-        this.lastDodgeTime = -Infinity;        this.stats = {
+        this.lastDodgeTime = -Infinity;
+        this.stats = {
             health: 100,
             maxHealth: 100,
             armor: 25,
@@ -27,6 +28,16 @@ class Player {
             right: Phaser.Input.Keyboard.KeyCodes.D
         });
         this.setupDodge();
+
+        this.isInvulnerable = false;
+        this.invulnerabilityDuration = 1000; // 1 second of invulnerability after hit
+        this.isDead = false;
+
+        // Create damage overlay for screen flash
+        this.damageOverlay = scene.add.rectangle(0, 0, scene.game.config.width, scene.game.config.height, 0xff0000, 0)
+            .setScrollFactor(0)
+            .setDepth(9999)
+            .setOrigin(0, 0);
     }
 
     setupDodge() {
@@ -91,10 +102,10 @@ class Player {
         this.stats.level++;
         // Show level up text
         const levelUpText = this.scene.add.text(
-            this.sprite.x, 
-            this.sprite.y - 60, 
-            'Level Up!', 
-            { 
+            this.sprite.x,
+            this.sprite.y - 60,
+            'Level Up!',
+            {
                 font: '24px Arial',
                 fill: '#ffff00',
                 stroke: '#000',
@@ -102,7 +113,7 @@ class Player {
                 fontStyle: 'bold'
             }
         ).setOrigin(0.5, 1).setDepth(2000);
-        
+
         // Add floating animation and fade out
         this.scene.tweens.add({
             targets: levelUpText,
@@ -112,9 +123,73 @@ class Player {
             ease: 'Cubic.Out',
             onComplete: () => levelUpText.destroy()
         });
+    }    takeDamage(amount) {
+        if (this.isInvulnerable || this.isDead) return;
+
+        // New armor absorption system:
+        // 1/3 of damage goes to armor, 2/3 to health
+        // If not enough armor, remainder spills to health
+        const armorDamageRatio = 1/3;
+        // Calculate armor damage as whole number, minimum of current armor and 1/3 of damage
+        let armorDamage = Math.min(this.stats.armor, Math.floor(amount * armorDamageRatio));
+        // Any damage not absorbed by armor (including fractional parts) goes to health
+        let healthDamage = Math.floor(amount - armorDamage);
+
+        // Apply damage to both armor and health
+        this.setArmor(this.stats.armor - armorDamage);
+        this.setHealth(this.stats.health - healthDamage);
+
+        // Visual feedback - screen flash
+        this.scene.tweens.add({
+            targets: this.damageOverlay,
+            alpha: { from: 0.3, to: 0 },
+            duration: 100,
+            ease: 'Power1'
+        });
+
+        // Visual feedback - sprite flash
+        this.scene.tweens.add({
+            targets: this.sprite,
+            alpha: { from: 0.5, to: 1 },
+            duration: 100,
+            yoyo: true,
+            repeat: 2
+        });
+
+        // Set invulnerability
+        this.isInvulnerable = true;
+        this.scene.time.delayedCall(this.invulnerabilityDuration, () => {
+            this.isInvulnerable = false;
+        });
+
+        // Check for death
+        if (this.stats.health <= 0 && !this.isDead) {
+            this.die();
+        }
+    }    die() {
+        this.isDead = true;
+        this.sprite.body.setVelocity(0, 0);
+
+        // Play death sound
+        this.scene.sound.play('player_die', { volume: audioVolume });
+
+        // Death animation
+        this.scene.tweens.add({
+            targets: this.sprite,
+            alpha: 0,
+            scale: 0.5,
+            duration: 1000,
+            ease: 'Power2',
+            onComplete: () => {
+                // You might want to add game over logic here
+                console.log('Player died');
+            }
+        });
     }
 
     update(delta) {
+        if (this.isDead) return;
+
         let vx = 0, vy = 0;
         if (!this.isDodging) {
             if (this.cursors.left.isDown) vx = -this.speed;
@@ -142,7 +217,12 @@ class Player {
         }
         // Regenerate stamina
         if (this.stats.stamina < this.stats.maxStamina) {
-            this.setStamina(this.stats.stamina + 10 * (delta/1000));
+            this.setStamina(this.stats.stamina + 10 * (delta / 1000));
+        }
+
+        // Add visual pulsing during invulnerability
+        if (this.isInvulnerable) {
+            this.sprite.alpha = 0.7 + Math.sin(this.scene.time.now * 0.01) * 0.3;
         }
     }
 }
