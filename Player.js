@@ -11,15 +11,15 @@ class Player {
         this.dodgeCooldown = 800;
         this.dodgeDistance = 180;
         this.dodgeDuration = 120;
-        this.lastDodgeTime = -Infinity;
-        this.stats = {
+        this.lastDodgeTime = -Infinity;        this.stats = {
             health: 100,
             maxHealth: 100,
-            armor: 25,
+            armor: 0,
+            maxArmor: 100,
             stamina: 100,
             maxStamina: 100,
             level: 1,
-            experience: 0
+            experience: 90
         };
         this.cursors = scene.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -78,16 +78,13 @@ class Player {
 
     setHealth(newHealth) {
         this.stats.health = Phaser.Math.Clamp(newHealth, 0, this.stats.maxHealth);
-    }
-    setArmor(newArmor) {
-        this.stats.armor = Math.max(0, newArmor);
+    }    setArmor(newArmor) {
+        this.stats.armor = Phaser.Math.Clamp(newArmor, 0, this.stats.maxArmor);
     }
     setStamina(newStamina) {
         this.stats.stamina = Phaser.Math.Clamp(newStamina, 0, this.stats.maxStamina);
-    }
-
-    getExperienceToNextLevel() {
-        return this.stats.level * 100;
+    }    getExperienceToNextLevel() {
+        return window.playerStats.getExperienceToNextLevel(this.stats.level);
     }
 
     gainExperience(amount) {
@@ -95,11 +92,10 @@ class Player {
         while (this.stats.experience >= this.getExperienceToNextLevel()) {
             this.levelUp();
         }
-    }
-
-    levelUp() {
+    }    levelUp() {
         this.stats.experience -= this.getExperienceToNextLevel();
         this.stats.level++;
+
         // Show level up text
         const levelUpText = this.scene.add.text(
             this.sprite.x,
@@ -122,8 +118,26 @@ class Player {
             duration: 1500,
             ease: 'Cubic.Out',
             onComplete: () => levelUpText.destroy()
-        });
-    }    takeDamage(amount) {
+        });        // Launch upgrade dialog scene
+        this.scene.scene.launch('UpgradeDialog', { playerRef: this, parentScene: this.scene });
+        this.scene.scene.pause('TestLevel');
+    }
+
+    applyUpgrade(type) {
+        switch (type) {
+            case 'health':
+                this.stats.maxHealth += 5;
+                this.setHealth(this.stats.health + 5); // Also heal by 5
+                break;            case 'armor':
+                this.stats.maxArmor += 5;
+                this.setArmor(this.stats.armor + 5);
+                break;
+            case 'stamina':
+                this.stats.maxStamina += 5;
+                this.setStamina(this.stats.stamina + 5);
+                break;
+        }
+    }takeDamage(amount) {
         if (this.isInvulnerable || this.isDead) return;
 
         // New armor absorption system:
@@ -171,7 +185,7 @@ class Player {
         this.sprite.body.setVelocity(0, 0);
 
         // Play death sound
-        this.scene.sound.play('player_die', { volume: audioVolume });
+        this.scene.sound.play('player_die', { volume: this.scene.audioVolume });
 
         // Death animation
         this.scene.tweens.add({
@@ -181,8 +195,11 @@ class Player {
             duration: 1000,
             ease: 'Power2',
             onComplete: () => {
-                // You might want to add game over logic here
-                console.log('Player died');
+                // Switch to the GameOver scene after a short delay and stop the TestLevel scene
+                this.scene.time.delayedCall(500, () => {
+                    this.scene.scene.stop('TestLevel'); // Stop the current scene
+                    this.scene.scene.start('GameOver'); // Start the GameOver scene
+                });
             }
         });
     }

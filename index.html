@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vampire Survivors Clone - Phase 1</title>
+    <title>Not A Doom Shooter</title>
     <style>
-        body { margin: 0; overflow: hidden; }
+        body { margin: 0; overflow: hidden; background-color: gray; }
         canvas { display: block; }
     </style>
 </head>
-<body>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.90.0/dist/phaser.js"></script>
+<body>    <script src="phaser_3.90.0.min.js"></script>    
     <script src="Player.js"></script>
     <script src="Weapons.js"></script>
-    <script src="Enemies.js"></script>
-    <script src="PlayerHUD.js"></script>
+    <script src="Enemies.js"></script>    <script src="PlayerHUD.js"></script>    <script src="PlayerStats.js"></script>
+    <script src="WaveSystem.js"></script>
+    <script src="LootSystem.js"></script>    <script src="scenes/MainMenu.js"></script>
+    <script src="scenes/TestLevel.js"></script>
+    <script src="scenes/GameOver.js"></script>
+    <script src="scenes/UpgradeDialog.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

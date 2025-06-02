@@ -87,6 +87,27 @@ class Enemy {
         if (this.playerRef && this.playerRef.playerRef) {
             this.playerRef.playerRef.gainExperience(10);
         }
+
+        // Roll for loot
+        if (window.lootSystem) {
+            const lootItem = window.lootSystem.rollForLoot('demon');
+            if (lootItem) {
+                // Spawn the item slightly offset from where the enemy died
+                const offsetX = Math.random() * 20 - 10;
+                const offsetY = Math.random() * 20 - 10;
+                switch (lootItem) {
+                    case 'medkit':
+                        this.scene.spawnMedkitPickup(this.sprite.x + offsetX, this.sprite.y + offsetY);
+                        break;
+                    case 'armor_shard':
+                        this.scene.spawnArmorShardPickup(this.sprite.x + offsetX, this.sprite.y + offsetY);
+                        break;
+                    case 'armor':
+                        this.scene.spawnArmorPickup(this.sprite.x + offsetX, this.sprite.y + offsetY);
+                        break;
+                }
+            }
+        }
     }
 }
 
