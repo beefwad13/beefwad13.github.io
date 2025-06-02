@@ -11,15 +11,16 @@ class Player {
         this.dodgeCooldown = 800;
         this.dodgeDistance = 180;
         this.dodgeDuration = 120;
-        this.lastDodgeTime = -Infinity;        this.stats = {
+        this.lastDodgeTime = -Infinity;        
+        this.stats = {
             health: 100,
             maxHealth: 100,
             armor: 0,
-            maxArmor: 100,
+            maxArmor: 50,
             stamina: 100,
             maxStamina: 100,
             level: 1,
-            experience: 90
+            experience: 0
         };
         this.cursors = scene.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -85,15 +86,12 @@ class Player {
         this.stats.stamina = Phaser.Math.Clamp(newStamina, 0, this.stats.maxStamina);
     }    getExperienceToNextLevel() {
         return window.playerStats.getExperienceToNextLevel(this.stats.level);
-    }
-
-    gainExperience(amount) {
+    }    gainExperience(amount) {
         this.stats.experience += amount;
-        while (this.stats.experience >= this.getExperienceToNextLevel()) {
+        if (this.stats.experience >= window.playerStats.getTotalXPNeeded(this.stats.level)) {
             this.levelUp();
         }
     }    levelUp() {
-        this.stats.experience -= this.getExperienceToNextLevel();
         this.stats.level++;
 
         // Show level up text
@@ -121,20 +119,43 @@ class Player {
         });        // Launch upgrade dialog scene
         this.scene.scene.launch('UpgradeDialog', { playerRef: this, parentScene: this.scene });
         this.scene.scene.pause('TestLevel');
-    }
-
-    applyUpgrade(type) {
-        switch (type) {
+    }    applyUpgrade(upgrade) {
+        switch (upgrade.id) {
             case 'health':
                 this.stats.maxHealth += 5;
                 this.setHealth(this.stats.health + 5); // Also heal by 5
-                break;            case 'armor':
+                break;
+            case 'armor':
                 this.stats.maxArmor += 5;
                 this.setArmor(this.stats.armor + 5);
                 break;
             case 'stamina':
                 this.stats.maxStamina += 5;
                 this.setStamina(this.stats.stamina + 5);
+                break;            case 'pistol_damage':
+            case 'shotgun_damage':
+            case 'assault_rifle_damage':
+            case 'pistol_mag_size':
+            case 'pistol_reload':
+            case 'shotgun_spread':
+            case 'shotgun_reload':
+            case 'shotgun_mag_size':
+            case 'assault_rifle_reload':
+            case 'assault_rifle_mag_size':
+            case 'assault_rifle_rate':
+                if (upgrade.weaponIndex !== undefined) {
+                    const weapon = window.WEAPONS[upgrade.weaponIndex];
+                    const currentValue = weapon[upgrade.upgradeType];
+                    const increment = upgrade.increment || 1;
+                    weapon[upgrade.upgradeType] = upgrade.isReverse ? 
+                        Math.max(upgrade.maxValue, currentValue + increment) :
+                        Math.min(upgrade.maxValue, currentValue + increment);
+
+                    // If magazine size was increased, also increase current ammo
+                    if (upgrade.upgradeType === 'magazineSize') {
+                        weapon.ammo = Math.min(weapon.ammo + increment, weapon.magazineSize);
+                    }
+                }
                 break;
         }
     }takeDamage(amount) {
@@ -194,9 +215,11 @@ class Player {
             scale: 0.5,
             duration: 1000,
             ease: 'Power2',
-            onComplete: () => {
-                // Switch to the GameOver scene after a short delay and stop the TestLevel scene
+            onComplete: () => {                // Switch to the GameOver scene after a short delay and stop the TestLevel scene
                 this.scene.time.delayedCall(500, () => {
+                    // Store player stats before switching scenes
+                    this.scene.registry.set('level', this.stats.level);
+                    this.scene.registry.set('experience', this.stats.experience);
                     this.scene.scene.stop('TestLevel'); // Stop the current scene
                     this.scene.scene.start('GameOver'); // Start the GameOver scene
                 });

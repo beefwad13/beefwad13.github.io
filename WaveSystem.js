@@ -3,7 +3,7 @@ class WaveSystem {
         this.scene = scene;
         this.elapsedTime = 0;
         this.currentWave = 0;
-        this.waveInterval = 10000; // 10 seconds
+        this.waveInterval = 15000; // 15 seconds
         this.lastWaveTime = 0;
         
         // Create timer text
@@ -48,7 +48,7 @@ class WaveSystem {
         this.timerText.setText(`${minutes}:${seconds.toString().padStart(2, '0')}`);
 
         // Check if it's time for a new wave
-        if (this.elapsedTime - this.lastWaveTime >= this.waveInterval) {
+        if (this.elapsedTime - this.lastWaveTime >= this.waveInterval || this.currentWave === 0) {
             this.startNewWave();
         }
     }    startNewWave() {

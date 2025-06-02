@@ -20,7 +20,7 @@ window.WEAPONS = [
     {
         name: 'Shotgun',
         cooldown: 800,
-        bulletsPerShot: 5,
+        bulletsPerShot: 3,
         spread: 20, // degrees
         color: 0xffcc00,
         rateOfFire: 'semiauto',
@@ -28,7 +28,8 @@ window.WEAPONS = [
         ammo: 5,
         reloading: false,
         shootSound: 'shotgun_shoot',
-        reloadSound: 'shotgun_reload',        reloadTime: 600, // 600ms per shell reload
+        reloadSound: 'shotgun_reload',        
+        reloadTime: 600, // 600ms per shell reload
         damage: 1,
         sprite: 'item_shotgun',
         unlocked: false
@@ -44,8 +45,9 @@ window.WEAPONS = [
         ammo: 20,
         reloading: false,
         shootSound: 'assault_rifle_shoot',
-        reloadSound: 'generic_reload',        reloadTime: 1500, // 1.5 seconds in milliseconds
-        damage: 2,
+        reloadSound: 'generic_reload',        
+        reloadTime: 1500, // 1.5 seconds in milliseconds
+        damage: 1,
         sprite: 'item_assaultrifle',
         unlocked: false
     }

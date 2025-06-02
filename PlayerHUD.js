@@ -21,12 +21,15 @@ class PlayerHUD {
             fill: '#ffff99'        }).setScrollFactor(0).setDepth(HUD_DEPTH);
         this.healthBarBg = this.scene.add.rectangle(barLeft, 40, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
         this.healthBar = this.scene.add.rectangle(barLeft + 2, 40, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.healthText = this.scene.add.text(barLeft + 210, 32, `Health: ${this.playerStats.health}`, { font: '16px Arial', fill: '#ff6666', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);
+        this.healthText = this.scene.add.text(barLeft + 210, 32, `Health: ${this.playerStats.health}`, { font: '16px Arial', fill: '#ff6666', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);        
         this.armorBarBg = this.scene.add.rectangle(barLeft, 64, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
         this.armorBar = this.scene.add.rectangle(barLeft + 2, 64, 200, 12, 0x3399ff).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
         this.armorText = this.scene.add.text(barLeft + 210, 56, `Armor: ${this.playerStats.armor}`, { font: '16px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);
         this.staminaBarBg = this.scene.add.rectangle(barLeft, 84, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.staminaBar = this.scene.add.rectangle(barLeft + 2, 84, 200, 12, 0x33ff66).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);// Weapon HUD
+        this.staminaBar = this.scene.add.rectangle(barLeft + 2, 84, 200, 12, 0x33ff66).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.staminaText = this.scene.add.text(barLeft + 210, 76, `Stamina: ${this.playerStats.stamina}`, { font: '16px Arial', fill: '#66ff99', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);
+
+        // Weapon HUD
         const weaponTextY = 110;
 
         // Create weapon slots background
@@ -64,8 +67,8 @@ class PlayerHUD {
         if (this.levelText) {
             this.levelText.setText(`Level ${this.playerStats.level}`);
         }        if (this.expText) {
-            const nextLevelXP = window.playerStats.getExperienceToNextLevel(this.playerStats.level);
-            this.expText.setText(`XP: ${this.playerStats.experience}/${nextLevelXP}`);
+            const totalNeeded = window.playerStats.getTotalXPNeeded(this.playerStats.level);
+            this.expText.setText(`XP: ${this.playerStats.experience}/${totalNeeded}`);
         }
 
         // Update weapon slots
@@ -94,10 +97,12 @@ class PlayerHUD {
         }
         if (this.armorText) {
             this.armorText.setText(`Armor: ${this.playerStats.armor}`);
-        }
-        // Stamina bar
+        }        // Stamina bar and text
         if (this.staminaBar && this.staminaBarBg) {
             this.staminaBar.width = 200 * (this.playerStats.stamina / this.playerStats.maxStamina);
+        }
+        if (this.staminaText) {
+            this.staminaText.setText(`Stamina: ${Math.floor(this.playerStats.stamina)}`);
         }
         
         // Ammo display

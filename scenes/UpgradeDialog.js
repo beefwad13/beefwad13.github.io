@@ -6,7 +6,9 @@ class UpgradeDialog extends Phaser.Scene {
     init(data) {
         this.playerRef = data.playerRef;
         this.parentScene = data.parentScene;
-    }    create() {
+    }
+
+    create() {
         // Set cursor to default for the dialog
         this.input.setDefaultCursor('default');
 
@@ -57,19 +59,19 @@ class UpgradeDialog extends Phaser.Scene {
             align: 'center'
         };
 
-        const createUpgradeOption = (y, title, description, type) => {
+        const createUpgradeButton = (y, upgrade) => {
             // Create background rectangle for button
             const buttonBg = this.add.rectangle(centerX, y, 300, 40, 0x444444)
                 .setScrollFactor(0)
                 .setDepth(HUD_DEPTH)
                 .setInteractive({ useHandCursor: true });
 
-            const button = this.add.text(centerX, y, title, buttonStyle)
+            const button = this.add.text(centerX, y, upgrade.name, buttonStyle)
                 .setOrigin(0.5)
                 .setScrollFactor(0)
                 .setDepth(HUD_DEPTH + 1);
 
-            const desc = this.add.text(centerX, y + 25, description, descStyle)
+            const desc = this.add.text(centerX, y + 25, upgrade.description, descStyle)
                 .setOrigin(0.5, 0)
                 .setScrollFactor(0)
                 .setDepth(HUD_DEPTH);
@@ -83,9 +85,11 @@ class UpgradeDialog extends Phaser.Scene {
             buttonBg.on('pointerout', () => {
                 buttonBg.setFillStyle(0x444444);
                 button.setStyle(buttonStyle);
-            });            // Add click handler
+            });
+
+            // Add click handler
             buttonBg.on('pointerdown', () => {
-                this.playerRef.applyUpgrade(type);
+                this.playerRef.applyUpgrade(upgrade);
                 // Reset cursor back to none (crosshair) before resuming game
                 this.input.setDefaultCursor('none');
                 this.scene.resume('TestLevel');
@@ -93,25 +97,13 @@ class UpgradeDialog extends Phaser.Scene {
             });
         };
 
-        createUpgradeOption(
-            centerY - 80,
-            'Increase Max Health',
-            'Gain +5 max health and heal for 5 points',
-            'health'
-        );
+        // Get random upgrades from the upgrade system
+        const upgrades = window.upgradeSystem.getUpgradeChoices();
+        const positions = [centerY - 80, centerY + 20, centerY + 120];
 
-        createUpgradeOption(
-            centerY + 20,
-            'Increase Armor',
-            'Gain +5 armor protection against enemy attacks',
-            'armor'
-        );
-
-        createUpgradeOption(
-            centerY + 120,
-            'Increase Max Stamina',
-            'Gain +5 max stamina for more frequent dodge rolls',
-            'stamina'
-        );
+        // Create upgrade buttons
+        upgrades.forEach((upgrade, index) => {
+            createUpgradeButton(positions[index], upgrade);
+        });
     }
 }

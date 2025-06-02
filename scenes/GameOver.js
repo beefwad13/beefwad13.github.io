@@ -32,10 +32,10 @@ class GameOver extends Phaser.Scene {
             fill: '#00ff00',
             stroke: '#000000',
             strokeThickness: 4
-        }).setOrigin(0.5);
-
-        // Stats details
+        }).setOrigin(0.5);        // Stats details
         const stats = [
+            `Level: ${this.registry.get('level') || 1}`,
+            `Total XP: ${this.registry.get('experience') || 0}`,
             `Kills: ${window.playerStats.kills}`,
             `Time Survived: ${window.playerStats.getFormattedTime()}`,
             `Reached Wave: ${window.playerStats.lastWave}`

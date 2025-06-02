@@ -42,11 +42,11 @@ class TestLevel extends Phaser.Scene {
 
         // Preload crosshair sprite
         this.load.image('crosshair', 'assets/sprites/player_xhair_cross.png');
-    }
-
-    create() {
-        // Reset player stats at the start of the level
+    }    create() {
+        // Reset player stats and registry at the start of the level
         window.playerStats.reset();
+        this.registry.set('level', 1);
+        this.registry.set('experience', 0);
         
         // Initialize properties
         this.mapWidth = 2560;
