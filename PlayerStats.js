@@ -16,9 +16,11 @@ class PlayerStats {
             }
         }
         return total;
-    }    getExperienceToNextLevel(level) {
+    }    
+    
+    getExperienceToNextLevel(level) {
         if (level === 1) return 100;
-        return Math.floor((level - 1) * 100 * 1.25);
+        return Math.floor((level - 1) * 25 + 100);
     }
 
     getTotalXPNeeded(level) {

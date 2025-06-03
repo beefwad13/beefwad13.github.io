@@ -3,8 +3,8 @@ class UpgradeSystem {
     constructor() {
         // Define upgrade categories with their chances
         this.categories = {
-            stats: { weight: 70 },
-            weapons: { weight: 30 }
+            stats: { weight: 50 },
+            weapons: { weight: 50 }
         };
 
         // Define available upgrades within each category

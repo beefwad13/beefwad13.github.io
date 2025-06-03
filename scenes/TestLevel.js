@@ -17,6 +17,7 @@ class TestLevel extends Phaser.Scene {
         this.load.audio('pickup_sound', 'assets/audio/ammopickup2.wav');
         this.load.audio('pickup_sound_small', 'assets/audio/ammopickup1.wav');
         this.load.audio('weapon_pickup', 'assets/audio/gunpickup2.wav');
+        this.load.audio('powerup', 'assets/audio/smb_powerup.wav');
 
         // Item sprites
         this.load.image('item_armor', 'assets/sprites/item_armor.png');
@@ -245,6 +246,13 @@ class TestLevel extends Phaser.Scene {
 
         // Manual reload
         this.input.keyboard.on('keydown-R', () => this.reloadWeapon(this.currentWeaponIndex));
+
+        // Add ESC key handler for pause
+        this.input.keyboard.on('keydown-ESC', () => {
+            this.scene.launch('PauseMenu');
+            this.scene.pause();
+            this.input.setDefaultCursor('default');
+        });
     }
 
     setupCollisions() {
@@ -559,10 +567,10 @@ class TestLevel extends Phaser.Scene {
             case 'armor_shard':
                 canPickup = this.player.stats.armor < this.player.stats.maxArmor;
                 if (canPickup) {
-                    const newArmor = Math.min(this.player.stats.maxArmor, this.player.stats.armor + 10);
+                    const newArmor = Math.min(this.player.stats.maxArmor, this.player.stats.armor + 5);
                     this.player.setArmor(newArmor);
                     this.sound.play('pickup_sound_small', { volume: this.audioVolume });
-                    pickupText = '+10 Armor';
+                    pickupText = '+5 Armor';
                     textColor = '#3399ff';
                 }
                 break;            case 'medkit':
@@ -722,7 +730,7 @@ class TestLevel extends Phaser.Scene {
             targets: text,
             y: text.y - 40,
             alpha: 0,
-            duration: 1000,
+            duration: 2500,
             ease: 'Cubic.Out',
             onComplete: () => text.destroy()
         });

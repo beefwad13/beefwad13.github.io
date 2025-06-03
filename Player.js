@@ -94,6 +94,9 @@ class Player {
     }    levelUp() {
         this.stats.level++;
 
+        // Play level up sound
+        this.scene.sound.play('powerup', { volume: this.scene.audioVolume });
+
         // Show level up text
         const levelUpText = this.scene.add.text(
             this.sprite.x,

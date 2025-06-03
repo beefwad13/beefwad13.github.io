@@ -1,6 +1,7 @@
 class UpgradeDialog extends Phaser.Scene {
     constructor() {
         super({ key: 'UpgradeDialog' });
+        this.buttonBgs = [];
     }
 
     init(data) {
@@ -32,9 +33,21 @@ class UpgradeDialog extends Phaser.Scene {
             .setScrollFactor(0)
             .setDepth(HUD_DEPTH);
 
+        // Add "Please wait..." text that will fade out
+        const waitText = this.add.text(centerX, centerY - 120,
+            'Please wait...',
+            {
+                font: '20px Arial',
+                fill: '#ffff00',
+                align: 'center'
+            })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(HUD_DEPTH + 1);
+
         // Title
         this.add.text(centerX, centerY - 160,
-            'Choose Your Upgrade',
+            'Leveled up! Choose Your Upgrade',
             {
                 font: '28px Arial',
                 fill: '#ffffff',
@@ -63,8 +76,9 @@ class UpgradeDialog extends Phaser.Scene {
             // Create background rectangle for button
             const buttonBg = this.add.rectangle(centerX, y, 300, 40, 0x444444)
                 .setScrollFactor(0)
-                .setDepth(HUD_DEPTH)
-                .setInteractive({ useHandCursor: true });
+                .setDepth(HUD_DEPTH);
+            
+            this.buttonBgs.push(buttonBg);
 
             const button = this.add.text(centerX, y, upgrade.name, buttonStyle)
                 .setOrigin(0.5)
@@ -76,34 +90,57 @@ class UpgradeDialog extends Phaser.Scene {
                 .setScrollFactor(0)
                 .setDepth(HUD_DEPTH);
 
-            // Add hover effects
-            buttonBg.on('pointerover', () => {
-                buttonBg.setFillStyle(0x666666);
-                button.setStyle({ ...buttonStyle, fill: '#ffff00' });
-            });
+            // Start with a darker color to indicate inactivity
+            buttonBg.setFillStyle(0x333333);
 
-            buttonBg.on('pointerout', () => {
-                buttonBg.setFillStyle(0x444444);
-                button.setStyle(buttonStyle);
-            });
-
-            // Add click handler
-            buttonBg.on('pointerdown', () => {
-                this.playerRef.applyUpgrade(upgrade);
-                // Reset cursor back to none (crosshair) before resuming game
-                this.input.setDefaultCursor('none');
-                this.scene.resume('TestLevel');
-                this.scene.stop();
-            });
+            return { buttonBg, button, desc };
         };
 
         // Get random upgrades from the upgrade system
         const upgrades = window.upgradeSystem.getUpgradeChoices();
         const positions = [centerY - 80, centerY + 20, centerY + 120];
 
-        // Create upgrade buttons
-        upgrades.forEach((upgrade, index) => {
-            createUpgradeButton(positions[index], upgrade);
+        // Create upgrade buttons and store their elements
+        const buttons = upgrades.map((upgrade, index) => {
+            return {
+                ...createUpgradeButton(positions[index], upgrade),
+                upgrade
+            };
+        });        // Enable buttons after 1 second
+        this.time.delayedCall(1000, () => {
+            // Enable all buttons
+            buttons.forEach(({ buttonBg, button, upgrade }) => {
+                buttonBg.setFillStyle(0x444444);
+                buttonBg.setInteractive({ useHandCursor: true });
+
+                // Add hover effects
+                buttonBg.on('pointerover', () => {
+                    buttonBg.setFillStyle(0x666666);
+                    button.setStyle({ ...buttonStyle, fill: '#ffff00' });
+                });
+
+                buttonBg.on('pointerout', () => {
+                    buttonBg.setFillStyle(0x444444);
+                    button.setStyle(buttonStyle);
+                });
+
+                // Add click handler
+                buttonBg.on('pointerdown', () => {
+                    this.playerRef.applyUpgrade(upgrade);
+                    // Reset cursor back to none (crosshair) before resuming game
+                    this.input.setDefaultCursor('none');
+                    this.scene.resume('TestLevel');
+                    this.scene.stop();
+                });
+            });
+            
+            // Fade out the wait text
+            this.tweens.add({
+                targets: waitText,
+                alpha: 0,
+                duration: 500,
+                onComplete: () => waitText.destroy()
+            });
         });
     }
 }

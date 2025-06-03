@@ -20,7 +20,7 @@ const config = {
         arcade: {
             debug: false,
         }
-    },    scene: [MainMenu, TestLevel, GameOver, UpgradeDialog]
+    },    scene: [MainMenu, TestLevel, GameOver, UpgradeDialog, PauseMenu]
 };
 
 const game = new Phaser.Game(config);
