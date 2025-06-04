@@ -5,14 +5,15 @@ class WaveSystem {
         this.currentWave = 0;
         this.waveInterval = 15000; // 15 seconds
         this.lastWaveTime = 0;
+        this.hudScale = 0.8; // Match PlayerHUD scale
         
         // Create timer text
         this.timerText = scene.add.text(
             scene.cameras.main.centerX,
-            20,
+            Math.floor(20 * this.hudScale),
             '0:00',
             {
-                font: '24px Arial',
+                font: `${Math.floor(24 * this.hudScale)}px Arial`,
                 fill: '#ffffff'
             }
         )
@@ -23,10 +24,10 @@ class WaveSystem {
         // Create wave announcement text
         this.waveText = scene.add.text(
             scene.cameras.main.centerX,
-            80,
+            Math.floor(80 * this.hudScale),
             '',
             {
-                font: '48px Arial',
+                font: `${Math.floor(48 * this.hudScale)}px Arial`,
                 fill: '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 4

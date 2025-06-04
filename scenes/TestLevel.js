@@ -72,11 +72,13 @@ class TestLevel extends Phaser.Scene {
         // Initialize wave system
         this.waveSystem = new WaveSystem(this);
     }    setupBackground() {
-        const tileSize = 64;
+        const tileScale = 0.8; // 20% smaller
+        const baseTileSize = 64;
+        const tileSize = baseTileSize * tileScale;
         for (let x = 0; x < this.mapWidth; x += tileSize) {
             for (let y = 0; y < this.mapHeight; y += tileSize) {
                 const tile = this.add.image(x + tileSize/2, y + tileSize/2, 'tile_hell');
-                tile.setDisplaySize(tileSize, tileSize); // Scale the tile to 64x64
+                tile.setDisplaySize(tileSize, tileSize);
             }
         }
     }setupBullets() {
@@ -813,8 +815,10 @@ class TestLevel extends Phaser.Scene {
 
     // Item spawn helper methods
     createFloatingItem(x, y, spriteKey, itemType, size = 64) {
+        const itemScale = 0.8; // 20% smaller
+        const scaledSize = size * itemScale;
         const item = this.add.sprite(x, y, spriteKey);
-        item.setDisplaySize(size, size);
+        item.setDisplaySize(scaledSize, scaledSize);
         this.itemGroup.add(item);
         this.children.bringToTop(item);
         

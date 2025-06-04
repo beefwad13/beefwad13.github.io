@@ -2,10 +2,13 @@
 class Player {    constructor(scene, x, y) {
         this.scene = scene;
         this.sprite = scene.add.sprite(x, y, 'player', 0);
-        this.sprite.setDisplaySize(104, 128);
+        this.spriteScale = 0.8; // 20% smaller
+        const baseWidth = 104;
+        const baseHeight = 128;
+        this.sprite.setDisplaySize(baseWidth * this.spriteScale, baseHeight * this.spriteScale);
         scene.physics.add.existing(this.sprite);
         this.sprite.body.setCollideWorldBounds(true);
-        this.speed = 400;
+        this.baseSpeed = 400;
         this.isDodging = false;
         this.dodgeCooldown = 800;
         this.dodgeDistance = 180;
@@ -15,29 +18,101 @@ class Player {    constructor(scene, x, y) {
         // Get permanent upgrade levels
         const healthUpgradeLevel = parseInt(localStorage.getItem('upgrade_health')) || 0;
         const armorUpgradeLevel = parseInt(localStorage.getItem('upgrade_armor')) || 0;
+        const staminaUpgradeLevel = parseInt(localStorage.getItem('upgrade_stamina')) || 0;
+        const speedUpgradeLevel = parseInt(localStorage.getItem('upgrade_speed')) || 0;
+        const criticalHitUpgradeLevel = parseInt(localStorage.getItem('upgrade_criticalHit')) || 0;
 
         // Calculate base stats plus permanent upgrades
         const baseHealth = 100;
         const baseArmor = 50;
+        const baseStamina = 100;
         const healthBonus = healthUpgradeLevel * 5;
         const armorBonus = armorUpgradeLevel * 5;
+        const staminaBonus = staminaUpgradeLevel * 5;
+        const speedBonus = speedUpgradeLevel * 5; // Percentage increase
         
+        // Calculate speed with percentage bonus
+        this.speed = this.baseSpeed * (1 + (speedBonus / 100));
         this.stats = {
             health: baseHealth + healthBonus,
             maxHealth: baseHealth + healthBonus,
             armor: 0,
             maxArmor: baseArmor + armorBonus,
-            stamina: 100,
-            maxStamina: 100,
+            stamina: baseStamina + staminaBonus,
+            maxStamina: baseStamina + staminaBonus,
+            criticalHitChance: criticalHitUpgradeLevel,
             level: 1,
             experience: 0
         };
-        this.cursors = scene.input.keyboard.addKeys({
-            up: Phaser.Input.Keyboard.KeyCodes.W,
-            down: Phaser.Input.Keyboard.KeyCodes.S,
-            left: Phaser.Input.Keyboard.KeyCodes.A,
-            right: Phaser.Input.Keyboard.KeyCodes.D
-        });
+
+        // Set up controls based on device type
+        this.isMobile = !scene.sys.game.device.os.desktop;
+        
+        if (this.isMobile) {
+            // Get the actual display dimensions accounting for scale
+            const displayWidth = scene.cameras.main.width;
+            const displayHeight = scene.cameras.main.height;
+            
+            // Create movement joystick (bottom left)
+            const baseMoveJoy = scene.add.circle(0, 0, 80, 0x888888)
+                .setAlpha(0.5)
+                .setDepth(1000)
+                .setScrollFactor(0)
+                .setPosition(80, displayHeight - 80);
+                
+            const thumbMoveJoy = scene.add.circle(0, 0, 40, 0xcccccc)
+                .setAlpha(0.8)
+                .setDepth(1000)
+                .setScrollFactor(0)
+                .setPosition(80, displayHeight - 80);
+            
+            this.moveJoystick = scene.rexVirtualJoystick.add({
+                x: 80,
+                y: displayHeight - 80,
+                radius: 80,
+                base: baseMoveJoy,
+                thumb: thumbMoveJoy,
+                fixed: true,
+                enable: true
+            });
+
+            // Create shooting joystick (bottom right)
+            const baseShootJoy = scene.add.circle(0, 0, 80, 0x888888)
+                .setAlpha(0.5)
+                .setDepth(1000)
+                .setScrollFactor(0)
+                .setPosition(displayWidth - 80, displayHeight - 80);
+                
+            const thumbShootJoy = scene.add.circle(0, 0, 40, 0xcccccc)
+                .setAlpha(0.8)
+                .setDepth(1000)
+                .setScrollFactor(0)
+                .setPosition(displayWidth - 80, displayHeight - 80);
+            
+            this.shootJoystick = scene.rexVirtualJoystick.add({
+                x: displayWidth - 80,
+                y: displayHeight - 80,
+                radius: 80,
+                base: baseShootJoy,
+                thumb: thumbShootJoy,
+                fixed: true,
+                enable: true
+            });
+
+            // Make sure joysticks are visible
+            this.moveJoystick.base.setVisible(true);
+            this.moveJoystick.thumb.setVisible(true);
+            this.shootJoystick.base.setVisible(true);
+            this.shootJoystick.thumb.setVisible(true);
+        } else {
+            this.cursors = scene.input.keyboard.addKeys({
+                up: Phaser.Input.Keyboard.KeyCodes.W,
+                down: Phaser.Input.Keyboard.KeyCodes.S,
+                left: Phaser.Input.Keyboard.KeyCodes.A,
+                right: Phaser.Input.Keyboard.KeyCodes.D
+            });
+        }
+
         this.setupDodge();
 
         this.isInvulnerable = false;
@@ -238,24 +313,45 @@ class Player {    constructor(scene, x, y) {
                 });
             }
         });
-    }
-
-    update(delta) {
+    }    update(delta) {
         if (this.isDead) return;
+
+        // Update speed based on current upgrade level
+        const speedUpgradeLevel = parseInt(localStorage.getItem('upgrade_speed')) || 0;
+        const speedBonus = speedUpgradeLevel * 5; // 5% per level
+        this.speed = this.baseSpeed * (1 + (speedBonus / 100));
 
         let vx = 0, vy = 0;
         if (!this.isDodging) {
-            if (this.cursors.left.isDown) vx = -this.speed;
-            else if (this.cursors.right.isDown) vx = this.speed;
-            if (this.cursors.up.isDown) vy = -this.speed;
-            else if (this.cursors.down.isDown) vy = this.speed;
+            if (this.isMobile) {
+                // Handle joystick movement
+                if (this.moveJoystick.force) {
+                    vx = this.moveJoystick.forceX * this.speed;
+                    vy = this.moveJoystick.forceY * this.speed;
+                }
+
+                // Handle shooting direction if right joystick is active
+                if (this.shootJoystick.force > 0) {
+                    // Add a property for shooting direction that weapons can use
+                    this.shootAngle = this.shootJoystick.rotation;
+                }
+            } else {
+                // Handle keyboard controls
+                if (this.cursors.left.isDown) vx = -this.speed;
+                else if (this.cursors.right.isDown) vx = this.speed;
+                if (this.cursors.up.isDown) vy = -this.speed;
+                else if (this.cursors.down.isDown) vy = this.speed;
+            }
+
             this.sprite.body.setVelocity(vx, vy);
-            if (vx !== 0 && vy !== 0) {
+            if (vx !== 0 && vy !== 0 && !this.isMobile) {
+                // Only normalize keyboard movement, joystick is already normalized
                 this.sprite.body.setVelocity(vx * 0.707, vy * 0.707);
             }
         } else {
             this.sprite.body.setVelocity(0, 0);
         }
+
         // Set frame based on direction
         if (vx === 0 && vy === 0) {
             this.sprite.setFrame(0);

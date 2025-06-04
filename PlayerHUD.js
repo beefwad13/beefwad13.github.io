@@ -5,58 +5,94 @@ class PlayerHUD {
         this.playerStats = playerStats;
         this.weapons = weapons;
         this.currentWeaponIndexRef = currentWeaponIndexRef;
-        this.createHUD();    }createHUD() {
+        this.hudScale = 0.8; // 20% smaller
+        this.createHUD();
+    }
+
+    createHUD() {
         const barLeft = 20;
-        const HUD_DEPTH = 5000; // Highest depth for all HUD elements
-          // Level and XP text at the top
+        const HUD_DEPTH = 5000;
+        
+        // Level and XP text at the top
         this.levelText = this.scene.add.text(barLeft, 10, 'Level 1', { 
-            font: '20px Arial', 
+            font: `${Math.floor(20 * this.hudScale)}px Arial`, 
             fill: '#ffff00',
             fontStyle: 'bold' 
-        }).setScrollFactor(0).setDepth(HUD_DEPTH);        // Coin counters
-        this.coinText = this.scene.add.text(this.scene.cameras.main.width - 20, 10, 'This Run: 0', {
-            font: '20px Arial',
+        }).setScrollFactor(0).setDepth(HUD_DEPTH);
+
+        // Coin counters - scaled down 20%
+        const coinPadding = Math.floor(20 * this.hudScale); // Scale the padding too
+        const coinVerticalSpacing = Math.floor(25 * this.hudScale); // Scale the vertical spacing
+        
+        this.coinText = this.scene.add.text(this.scene.cameras.main.width - coinPadding, 10, 'This Run: 0', {
+            font: `${Math.floor(20 * this.hudScale)}px Arial`,
             fill: '#ffdd00',
             fontStyle: 'bold'
         }).setScrollFactor(0).setDepth(HUD_DEPTH).setOrigin(1, 0);
 
-        this.totalCoinsText = this.scene.add.text(this.scene.cameras.main.width - 20, 35, 'Total: 0', {
-            font: '20px Arial',
+        this.totalCoinsText = this.scene.add.text(this.scene.cameras.main.width - coinPadding, 10 + coinVerticalSpacing, 'Total: 0', {
+            font: `${Math.floor(20 * this.hudScale)}px Arial`,
             fill: '#ffbb00',
             fontStyle: 'bold'
         }).setScrollFactor(0).setDepth(HUD_DEPTH).setOrigin(1, 0);
 
         // Make coin counters responsive to window resize
         this.scene.scale.on('resize', (gameSize) => {
-            this.coinText.x = gameSize.width - 20;
-            this.totalCoinsText.x = gameSize.width - 20;
+            this.coinText.x = gameSize.width - coinPadding;
+            this.totalCoinsText.x = gameSize.width - coinPadding;
         });
         
-        this.expText = this.scene.add.text(barLeft + 100, 10, 'XP: 0/100', { 
-            font: '18px Arial', 
-            fill: '#ffff99'        }).setScrollFactor(0).setDepth(HUD_DEPTH);
-        this.healthBarBg = this.scene.add.rectangle(barLeft, 40, 204, 24, 0x222222).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.healthBar = this.scene.add.rectangle(barLeft + 2, 40, 200, 20, 0xff0000).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.healthText = this.scene.add.text(barLeft + 210, 32, `Health: ${this.playerStats.health}`, { font: '16px Arial', fill: '#ff6666', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);        
-        this.armorBarBg = this.scene.add.rectangle(barLeft, 64, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.armorBar = this.scene.add.rectangle(barLeft + 2, 64, 200, 12, 0x3399ff).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.armorText = this.scene.add.text(barLeft + 210, 56, `Armor: ${this.playerStats.armor}`, { font: '16px Arial', fill: '#66ccff', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);
-        this.staminaBarBg = this.scene.add.rectangle(barLeft, 84, 204, 16, 0x222222).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.staminaBar = this.scene.add.rectangle(barLeft + 2, 84, 200, 12, 0x33ff66).setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
-        this.staminaText = this.scene.add.text(barLeft + 210, 76, `Stamina: ${this.playerStats.stamina}`, { font: '16px Arial', fill: '#66ff99', fontStyle: 'bold' }).setScrollFactor(0).setDepth(HUD_DEPTH);
+        this.expText = this.scene.add.text(barLeft + Math.floor(100 * this.hudScale), 10, 'XP: 0/100', { 
+            font: `${Math.floor(18 * this.hudScale)}px Arial`, 
+            fill: '#ffff99'
+        }).setScrollFactor(0).setDepth(HUD_DEPTH);
+
+        // Health bar
+        const barWidth = Math.floor(200 * this.hudScale);
+        const healthBarHeight = Math.floor(24 * this.hudScale);
+        this.healthBarBg = this.scene.add.rectangle(barLeft, 40, barWidth + 4, healthBarHeight, 0x222222)
+            .setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.healthBar = this.scene.add.rectangle(barLeft + 2, 40, barWidth, Math.floor(20 * this.hudScale), 0xff0000)
+            .setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.healthText = this.scene.add.text(barLeft + Math.floor(210 * this.hudScale), Math.floor(32 * this.hudScale), 
+            `Health: ${this.playerStats.health}`, 
+            { font: `${Math.floor(16 * this.hudScale)}px Arial`, fill: '#ff6666', fontStyle: 'bold' })
+            .setScrollFactor(0).setDepth(HUD_DEPTH);
+
+        // Armor bar
+        const armorBarHeight = Math.floor(16 * this.hudScale);
+        this.armorBarBg = this.scene.add.rectangle(barLeft, Math.floor(64 * this.hudScale), barWidth + 4, armorBarHeight, 0x222222)
+            .setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.armorBar = this.scene.add.rectangle(barLeft + 2, Math.floor(64 * this.hudScale), barWidth, Math.floor(12 * this.hudScale), 0x3399ff)
+            .setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.armorText = this.scene.add.text(barLeft + Math.floor(210 * this.hudScale), Math.floor(56 * this.hudScale), 
+            `Armor: ${this.playerStats.armor}`, 
+            { font: `${Math.floor(16 * this.hudScale)}px Arial`, fill: '#66ccff', fontStyle: 'bold' })
+            .setScrollFactor(0).setDepth(HUD_DEPTH);
+
+        // Stamina bar
+        this.staminaBarBg = this.scene.add.rectangle(barLeft, Math.floor(84 * this.hudScale), barWidth + 4, armorBarHeight, 0x222222)
+            .setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.staminaBar = this.scene.add.rectangle(barLeft + 2, Math.floor(84 * this.hudScale), barWidth, Math.floor(12 * this.hudScale), 0x33ff66)
+            .setScrollFactor(0).setOrigin(0,0.5).setDepth(HUD_DEPTH);
+        this.staminaText = this.scene.add.text(barLeft + Math.floor(210 * this.hudScale), Math.floor(76 * this.hudScale), 
+            `Stamina: ${this.playerStats.stamina}`, 
+            { font: `${Math.floor(16 * this.hudScale)}px Arial`, fill: '#66ff99', fontStyle: 'bold' })
+            .setScrollFactor(0).setDepth(HUD_DEPTH);
 
         // Weapon HUD
-        const weaponTextY = 110;
+        const weaponTextY = Math.floor(110 * this.hudScale);
 
         // Create weapon slots background
-        const slotSize = 64;
-        const slotPadding = 10;
+        const slotSize = Math.floor(64 * this.hudScale);
+        const slotPadding = Math.floor(10 * this.hudScale);
         const slotsStartX = barLeft;
         const slotsY = weaponTextY;
 
         // Create weapon slots
         this.weaponSlots = [];
-        this.weapons.forEach((weapon, index) => {            const slotBg = this.scene.add.rectangle(
+        this.weapons.forEach((weapon, index) => {
+            const slotBg = this.scene.add.rectangle(
                 slotsStartX + (index * (slotSize + slotPadding)),
                 slotsY,
                 slotSize,
@@ -68,7 +104,7 @@ class PlayerHUD {
                 slotBg.x + slotSize/2,
                 slotBg.y + slotSize/2,
                 weapon.sprite
-            ).setScrollFactor(0).setScale(0.5).setDepth(HUD_DEPTH);
+            ).setScrollFactor(0).setScale(0.5 * this.hudScale).setDepth(HUD_DEPTH);
 
             // Dim weapons that aren't unlocked
             if (!weapon.unlocked) {
@@ -76,10 +112,15 @@ class PlayerHUD {
             }
 
             this.weaponSlots.push({ bg: slotBg, sprite: weaponSprite });
-        });        this.ammoText = this.scene.add.text(barLeft, weaponTextY + 74, '', 
-            { font: '18px Arial', fill: '#fff', fontFamily: 'monospace' })
+        });
+
+        this.ammoText = this.scene.add.text(barLeft, weaponTextY + Math.floor(74 * this.hudScale), '', 
+            { font: `${Math.floor(18 * this.hudScale)}px Arial`, fill: '#fff', fontFamily: 'monospace' })
             .setScrollFactor(0).setOrigin(0, 0).setDepth(HUD_DEPTH);
-    }    updateHUD() {        // Level and Experience
+    }    updateHUD() {
+        const barWidth = Math.floor(200 * this.hudScale);
+        
+        // Level and Experience
         if (this.levelText) {
             this.levelText.setText(`Level ${this.playerStats.level}`);
         }
@@ -110,7 +151,7 @@ class PlayerHUD {
 
         // Health bar and text
         if (this.healthBar && this.healthBarBg) {
-            this.healthBar.width = 200 * (this.playerStats.health / this.playerStats.maxHealth);
+            this.healthBar.width = barWidth * (this.playerStats.health / this.playerStats.maxHealth);
             this.healthBar.fillColor = 0xff0000;
         }
         if (this.healthText) {
@@ -118,14 +159,15 @@ class PlayerHUD {
         }
         // Armor bar and text
         if (this.armorBar && this.armorBarBg) {
-            this.armorBar.width = 200 * (this.playerStats.armor / this.playerStats.maxArmor);
+            this.armorBar.width = barWidth * (this.playerStats.armor / this.playerStats.maxArmor);
             this.armorBar.fillColor = 0x3399ff;
         }
         if (this.armorText) {
             this.armorText.setText(`Armor: ${this.playerStats.armor}`);
-        }        // Stamina bar and text
+        }
+        // Stamina bar and text
         if (this.staminaBar && this.staminaBarBg) {
-            this.staminaBar.width = 200 * (this.playerStats.stamina / this.playerStats.maxStamina);
+            this.staminaBar.width = barWidth * (this.playerStats.stamina / this.playerStats.maxStamina);
         }
         if (this.staminaText) {
             this.staminaText.setText(`Stamina: ${Math.floor(this.playerStats.stamina)}`);

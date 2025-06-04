@@ -7,7 +7,10 @@ class Enemy {
         this.health = 3;
         this.damage = 25; // Base damage dealt to player on collision
         this.sprite = scene.add.sprite(x, y, 'enemy_demon', 0);
-        this.sprite.setDisplaySize(70, 128); // Keep original proportions
+        this.spriteScale = 0.8; // 20% smaller
+        const baseWidth = 70;
+        const baseHeight = 128;
+        this.sprite.setDisplaySize(baseWidth * this.spriteScale, baseHeight * this.spriteScale);
         scene.physics.add.existing(this.sprite);
         this.sprite.body.setCollideWorldBounds(true);
         this.sprite.enemyRef = this; // Reference for callbacks

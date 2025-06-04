@@ -21,6 +21,33 @@ class CoinStore extends Phaser.Scene {
                 maxLevel: 5,
                 bonus: 5,
                 description: '+5 Max Armor'
+            },
+            stamina: {
+                name: 'Max Stamina',
+                icon: 'icon_stamina',
+                basePrice: 10,
+                priceIncrease: 10,
+                maxLevel: 5,
+                bonus: 5,
+                description: '+5 Max Stamina'
+            },
+            speed: {
+                name: 'Move Speed',
+                icon: 'icon_speed',
+                basePrice: 10,
+                priceIncrease: 10,
+                maxLevel: 5,
+                bonus: 5,
+                description: '+5% Move Speed'
+            },
+            criticalHit: {
+                name: 'Critical Hit',
+                icon: 'icon_criticalhit',
+                basePrice: 25,
+                priceIncrease: 25,
+                maxLevel: 5,
+                bonus: 1,
+                description: '+1% Critical Hit Chance'
             }
         };
     }
@@ -29,6 +56,9 @@ class CoinStore extends Phaser.Scene {
         // Load upgrade icons
         this.load.image('item_medkit', 'assets/sprites/item_medkit.png');
         this.load.image('item_armor', 'assets/sprites/item_armor.png');
+        this.load.image('icon_stamina', 'assets/sprites/icon_stamina.png');
+        this.load.image('icon_speed', 'assets/sprites/icon_speed.png');
+        this.load.image('icon_criticalhit', 'assets/sprites/icon_criticalhit.png');
     }
 
     create() {
@@ -58,16 +88,14 @@ class CoinStore extends Phaser.Scene {
         }).setOrigin(0.5);
 
         // Create upgrade display
-        this.createUpgradeDisplay();
-
-        // Create Back to Main Menu button
-        const mainMenuButton = this.add.text(centerX, centerY + 200, 'Back to Main Menu', {
-            font: '32px Arial',
+        this.createUpgradeDisplay();        // Create Back to Main Menu button in top left
+        const mainMenuButton = this.add.text(20, 20, '← Back', {
+            font: '24px Arial',
             fill: '#ffffff',
             backgroundColor: '#333333',
-            padding: { x: 20, y: 10 }
+            padding: { x: 15, y: 8 }
         })
-        .setOrigin(0.5)
+        .setOrigin(0, 0)
         .setInteractive({ useHandCursor: true });
 
         // Add hover effects
