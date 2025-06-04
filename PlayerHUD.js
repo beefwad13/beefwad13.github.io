@@ -8,13 +8,29 @@ class PlayerHUD {
         this.createHUD();    }createHUD() {
         const barLeft = 20;
         const HUD_DEPTH = 5000; // Highest depth for all HUD elements
-        
-        // Level and XP text at the top
+          // Level and XP text at the top
         this.levelText = this.scene.add.text(barLeft, 10, 'Level 1', { 
             font: '20px Arial', 
             fill: '#ffff00',
             fontStyle: 'bold' 
-        }).setScrollFactor(0).setDepth(HUD_DEPTH);
+        }).setScrollFactor(0).setDepth(HUD_DEPTH);        // Coin counters
+        this.coinText = this.scene.add.text(this.scene.cameras.main.width - 20, 10, 'This Run: 0', {
+            font: '20px Arial',
+            fill: '#ffdd00',
+            fontStyle: 'bold'
+        }).setScrollFactor(0).setDepth(HUD_DEPTH).setOrigin(1, 0);
+
+        this.totalCoinsText = this.scene.add.text(this.scene.cameras.main.width - 20, 35, 'Total: 0', {
+            font: '20px Arial',
+            fill: '#ffbb00',
+            fontStyle: 'bold'
+        }).setScrollFactor(0).setDepth(HUD_DEPTH).setOrigin(1, 0);
+
+        // Make coin counters responsive to window resize
+        this.scene.scale.on('resize', (gameSize) => {
+            this.coinText.x = gameSize.width - 20;
+            this.totalCoinsText.x = gameSize.width - 20;
+        });
         
         this.expText = this.scene.add.text(barLeft + 100, 10, 'XP: 0/100', { 
             font: '18px Arial', 
@@ -66,7 +82,17 @@ class PlayerHUD {
     }    updateHUD() {        // Level and Experience
         if (this.levelText) {
             this.levelText.setText(`Level ${this.playerStats.level}`);
-        }        if (this.expText) {
+        }
+        
+        // Update coin counters
+        if (this.coinText) {
+            this.coinText.setText(`This Run: ${this.playerStats.coins || 0}`);
+        }
+        if (this.totalCoinsText) {
+            this.totalCoinsText.setText(`Total: ${window.playerStats.totalCoins}`);
+        }
+
+        if (this.expText) {
             const totalNeeded = window.playerStats.getTotalXPNeeded(this.playerStats.level);
             this.expText.setText(`XP: ${this.playerStats.experience}/${totalNeeded}`);
         }

@@ -18,11 +18,11 @@ class TestLevel extends Phaser.Scene {
         this.load.audio('pickup_sound_small', 'assets/audio/ammopickup1.wav');
         this.load.audio('weapon_pickup', 'assets/audio/gunpickup2.wav');
         this.load.audio('powerup', 'assets/audio/smb_powerup.wav');
-
-        // Item sprites
+        this.load.audio('coin_pickup', 'assets/audio/9mmclip1.wav');        // Item sprites
         this.load.image('item_armor', 'assets/sprites/item_armor.png');
         this.load.image('item_armor_shard', 'assets/sprites/item_armor_shard.png');
         this.load.image('item_medkit', 'assets/sprites/item_medkit.png');
+        this.load.image('item_coin', 'assets/sprites/item_coin.png');
 
         // Load weapon sprites
         this.load.image('item_pistol', 'assets/sprites/item_pistol.png');
@@ -43,6 +43,9 @@ class TestLevel extends Phaser.Scene {
 
         // Preload crosshair sprite
         this.load.image('crosshair', 'assets/sprites/player_xhair_cross.png');
+        
+        // Load background tile
+        this.load.image('tile_hell', 'assets/sprites/tile_hell1.png');
     }    create() {
         // Reset player stats and registry at the start of the level
         window.playerStats.reset();
@@ -68,17 +71,15 @@ class TestLevel extends Phaser.Scene {
 
         // Initialize wave system
         this.waveSystem = new WaveSystem(this);
-    }
-
-    setupBackground() {
+    }    setupBackground() {
         const tileSize = 64;
         for (let x = 0; x < this.mapWidth; x += tileSize) {
             for (let y = 0; y < this.mapHeight; y += tileSize) {
-                this.add.rectangle(x + tileSize/2, y + tileSize/2, tileSize, tileSize, 
-                    (x+y)%128 === 0 ? 0x333333 : 0x444444);
+                const tile = this.add.image(x + tileSize/2, y + tileSize/2, 'tile_hell');
+                tile.setDisplaySize(tileSize, tileSize); // Scale the tile to 64x64
             }
         }
-    }    setupBullets() {
+    }setupBullets() {
         // Reset all weapons to locked except pistol
         window.WEAPONS.forEach((weapon, index) => {
             weapon.unlocked = index === 0; // Only pistol (index 0) starts unlocked
@@ -89,10 +90,10 @@ class TestLevel extends Phaser.Scene {
             maxSize: 50,
             runChildUpdate: true
         });
-    }
-
-    setupPlayer() {
+    }    setupPlayer() {
         this.player = new Player(this, this.mapWidth / 2, this.mapHeight / 2);
+        this.player.stats.coins = 0; // Initialize coins
+        this.registry.set('coins', 0); // Initialize coins in registry
         this.playerStats = this.player.stats;
         
         // Set world bounds
@@ -504,11 +505,14 @@ class TestLevel extends Phaser.Scene {
             }
 
             const isKillingBlow = enemyObj.health <= dmg;
-            this.sound.play(isKillingBlow ? 'bullet_hit_kill' : 'bullet_hit', { volume: this.audioVolume });
-
-            // Track kills if this is a killing blow
+            this.sound.play(isKillingBlow ? 'bullet_hit_kill' : 'bullet_hit', { volume: this.audioVolume });            // Track kills if this is a killing blow
             if (isKillingBlow) {
                 window.playerStats.incrementKills();
+                
+                // 30% chance to spawn a coin
+                if (Math.random() < 0.3) {
+                    const coin = this.createFloatingItem(enemySprite.x, enemySprite.y, 'item_coin', 'coin', 32);
+                }
             }
 
             this.showDamageNumber(enemySprite.x, enemySprite.y, dmg);
@@ -526,14 +530,12 @@ class TestLevel extends Phaser.Scene {
             const knockbackVec = new Phaser.Math.Vector2(
                 enemySprite.x - playerSprite.x,
                 enemySprite.y - playerSprite.y
-            ).normalize().scale(60);
-
-            enemyObj.takeDamage(0, { x: knockbackVec.x, y: knockbackVec.y, duration: 400 });
-
+            ).normalize().scale(60);            
+            enemyObj.takeDamage(0, { x: knockbackVec.x, y: knockbackVec.y, duration: 400 });            
             if (!this.player.isInvulnerable) {
                 this.sound.play('bullet_hit', { volume: this.audioVolume });
             }
-            this.player.takeDamage(10);
+            this.player.takeDamage(enemyObj.damage);
         }
     }    handleItemPickup(playerSprite, item) {
         if (!item.active) return;
@@ -541,8 +543,19 @@ class TestLevel extends Phaser.Scene {
         let canPickup = false;
         let pickupText = '';
         let textColor = '#ffffff';
-
-        switch (item.itemType) {
+        
+        switch (item.itemType) {            case 'coin':
+                canPickup = true;
+                if (canPickup) {
+                    this.player.stats.coins = (this.player.stats.coins || 0) + 1;
+                    window.playerStats.addCoins(1);
+                    this.registry.set('coins', this.player.stats.sessionCoins); // Update registry with session coins
+                    this.sound.play('coin_pickup', { volume: this.audioVolume });
+                    pickupText = '+1 Coin';
+                    textColor = '#ffdd00';
+                    if (typeof this.updateHUD === 'function') this.updateHUD();
+                }
+                break;
             case 'weapon':
                 canPickup = !window.WEAPONS[item.weaponIndex].unlocked;
                 if (canPickup) {

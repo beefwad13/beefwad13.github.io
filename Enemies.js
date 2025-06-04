@@ -5,6 +5,7 @@ class Enemy {
     constructor(scene, x, y, playerRef) {
         this.scene = scene;
         this.health = 3;
+        this.damage = 25; // Base damage dealt to player on collision
         this.sprite = scene.add.sprite(x, y, 'enemy_demon', 0);
         this.sprite.setDisplaySize(70, 128); // Keep original proportions
         scene.physics.add.existing(this.sprite);

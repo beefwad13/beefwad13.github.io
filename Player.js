@@ -1,6 +1,5 @@
 // Player class for Vampire Survivors clone
-class Player {
-    constructor(scene, x, y) {
+class Player {    constructor(scene, x, y) {
         this.scene = scene;
         this.sprite = scene.add.sprite(x, y, 'player', 0);
         this.sprite.setDisplaySize(104, 128);
@@ -11,12 +10,23 @@ class Player {
         this.dodgeCooldown = 800;
         this.dodgeDistance = 180;
         this.dodgeDuration = 120;
-        this.lastDodgeTime = -Infinity;        
+        this.lastDodgeTime = -Infinity;
+
+        // Get permanent upgrade levels
+        const healthUpgradeLevel = parseInt(localStorage.getItem('upgrade_health')) || 0;
+        const armorUpgradeLevel = parseInt(localStorage.getItem('upgrade_armor')) || 0;
+
+        // Calculate base stats plus permanent upgrades
+        const baseHealth = 100;
+        const baseArmor = 50;
+        const healthBonus = healthUpgradeLevel * 5;
+        const armorBonus = armorUpgradeLevel * 5;
+        
         this.stats = {
-            health: 100,
-            maxHealth: 100,
+            health: baseHealth + healthBonus,
+            maxHealth: baseHealth + healthBonus,
             armor: 0,
-            maxArmor: 50,
+            maxArmor: baseArmor + armorBonus,
             stamina: 100,
             maxStamina: 100,
             level: 1,

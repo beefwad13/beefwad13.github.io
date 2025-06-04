@@ -19,8 +19,7 @@ const config = {
         default: 'arcade',
         arcade: {
             debug: false,
-        }
-    },    scene: [MainMenu, TestLevel, GameOver, UpgradeDialog, PauseMenu]
+        }    },    scene: [MainMenu, TestLevel, GameOver, UpgradeDialog, PauseMenu, CoinStore]
 };
 
 const game = new Phaser.Game(config);
