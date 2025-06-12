@@ -43,7 +43,7 @@ class Player {    constructor(scene, x, y) {
             maxStamina: baseStamina + staminaBonus,
             criticalHitChance: criticalHitUpgradeLevel,
             level: 1,
-            experience: 90
+            experience: 0
         };
         this.cursors = scene.input.keyboard.addKeys({
             up: Phaser.Input.Keyboard.KeyCodes.W,
