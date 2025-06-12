@@ -20,7 +20,7 @@ class GameOver extends Phaser.Scene {
 
         // Create Player Stats section
         const statsStyle = {
-            font: '24px Arial',
+            font: '16px Arial',
             fill: '#ffffff',
             stroke: '#000000',
             strokeThickness: 2
@@ -28,7 +28,7 @@ class GameOver extends Phaser.Scene {
 
         // Stats title
         this.add.text(centerX, 160, 'Player Stats', {
-            font: '32px Arial',
+            font: '24px Arial',
             fill: '#00ff00',
             stroke: '#000000',
             strokeThickness: 4
@@ -43,13 +43,13 @@ class GameOver extends Phaser.Scene {
         ];
 
         stats.forEach((stat, index) => {
-            this.add.text(centerX, 200 + (index * 30), stat, statsStyle)
+            this.add.text(centerX, 200 + (index * 20), stat, statsStyle)
                 .setOrigin(0.5);
         });
 
         // Create Try Again button
-        const tryAgainButton = this.add.text(centerX, centerY - 50, 'Try Again?', {
-            font: '32px Arial',
+        const tryAgainButton = this.add.text(centerX, centerY + 100, 'Try Again?', {
+            font: '24px Arial',
             fill: '#ffffff',
             backgroundColor: '#333333',
             padding: { x: 20, y: 10 }
@@ -58,8 +58,8 @@ class GameOver extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
         // Create Main Menu button
-        const mainMenuButton = this.add.text(centerX, centerY + 50, 'Back to Main Menu', {
-            font: '32px Arial',
+        const mainMenuButton = this.add.text(centerX, centerY + 150, 'Back to Main Menu', {
+            font: '24px Arial',
             fill: '#ffffff',
             backgroundColor: '#333333',
             padding: { x: 20, y: 10 }

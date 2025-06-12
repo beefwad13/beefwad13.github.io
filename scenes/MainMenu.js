@@ -45,7 +45,7 @@ class MainMenu extends Phaser.Scene {
 
         // Create the buttons
         const startButton = this.add.text(centerX, centerY + 140, 'Start Game', {
-            font: '32px Arial',
+            font: '24px Arial',
             fill: '#ffffff',
             backgroundColor: '#333333',
             padding: { x: 20, y: 10 }
@@ -54,7 +54,7 @@ class MainMenu extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
         const storeButton = this.add.text(centerX, centerY + 210, 'Store', {
-            font: '32px Arial',
+            font: '24px Arial',
             fill: '#ffffff',
             backgroundColor: '#333333',
             padding: { x: 20, y: 10 }

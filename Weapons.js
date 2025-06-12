@@ -2,7 +2,7 @@
 window.WEAPONS = [
     {
         name: 'Pistol',
-        cooldown: 300,
+        cooldown: 600,
         bulletsPerShot: 1,
         spread: 0,
         color: 0x00ff00,

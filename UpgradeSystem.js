@@ -14,19 +14,22 @@ class UpgradeSystem {
                     id: 'health',
                     name: 'Increase Max Health',
                     description: 'Gain +5 max health and heal for 5 points',
-                    type: 'stats'
+                    type: 'stats',
+                    icon: 'assets/sprites/item_medkit.png'
                 },
                 {
                     id: 'armor',
                     name: 'Increase Armor',
                     description: 'Gain +5 armor protection against enemy attacks',
-                    type: 'stats'
+                    type: 'stats',
+                    icon: 'assets/sprites/item_armor.png'
                 },
                 {
                     id: 'stamina',
                     name: 'Increase Max Stamina',
                     description: 'Gain +5 max stamina for more frequent dodge rolls',
-                    type: 'stats'
+                    type: 'stats',
+                    icon: 'assets/sprites/icon_stamina.png'
                 }
             ],            weapons: [
                 // Pistol upgrades
@@ -37,7 +40,8 @@ class UpgradeSystem {
                     type: 'weapons',
                     weaponIndex: 0,
                     upgradeType: 'damage',
-                    maxValue: 4
+                    maxValue: 4,
+                    icon: 'assets/sprites/item_pistol.png'
                 },
                 {
                     id: 'pistol_mag_size',
@@ -47,7 +51,8 @@ class UpgradeSystem {
                     weaponIndex: 0,
                     upgradeType: 'magazineSize',
                     increment: 2,
-                    maxValue: 16
+                    maxValue: 16,
+                    icon: 'assets/sprites/item_pistol.png'
                 },
                 {
                     id: 'pistol_reload',
@@ -58,7 +63,8 @@ class UpgradeSystem {
                     upgradeType: 'reloadTime',
                     increment: -100,
                     maxValue: 700,
-                    isReverse: true
+                    isReverse: true,
+                    icon: 'assets/sprites/item_pistol.png'
                 },
                 // Shotgun upgrades
                 {
@@ -68,7 +74,8 @@ class UpgradeSystem {
                     type: 'weapons',
                     weaponIndex: 1,
                     upgradeType: 'damage',
-                    maxValue: 3
+                    maxValue: 3,
+                    icon: 'assets/sprites/item_shotgun.png'
                 },
                 {
                     id: 'shotgun_spread',
@@ -78,7 +85,8 @@ class UpgradeSystem {
                     weaponIndex: 1,
                     upgradeType: 'bulletsPerShot',
                     increment: 1,
-                    maxValue: 6
+                    maxValue: 6,
+                    icon: 'assets/sprites/item_shotgun.png'
                 },
                 {
                     id: 'shotgun_reload',
@@ -89,7 +97,8 @@ class UpgradeSystem {
                     upgradeType: 'reloadTime',
                     increment: -100,
                     maxValue: 500,
-                    isReverse: true
+                    isReverse: true,
+                    icon: 'assets/sprites/item_shotgun.png'
                 },
                 {
                     id: 'shotgun_mag_size',
@@ -99,7 +108,8 @@ class UpgradeSystem {
                     weaponIndex: 1,
                     upgradeType: 'magazineSize',
                     increment: 1,
-                    maxValue: 8
+                    maxValue: 8,
+                    icon: 'assets/sprites/item_shotgun.png'
                 },
                 // Assault Rifle upgrades
                 {
@@ -109,7 +119,8 @@ class UpgradeSystem {
                     type: 'weapons',
                     weaponIndex: 2,
                     upgradeType: 'damage',
-                    maxValue: 3
+                    maxValue: 3,
+                    icon: 'assets/sprites/item_assaultrifle.png'
                 },
                 {
                     id: 'assault_rifle_reload',
@@ -120,7 +131,8 @@ class UpgradeSystem {
                     upgradeType: 'reloadTime',
                     increment: -100,
                     maxValue: 1200,
-                    isReverse: true
+                    isReverse: true,
+                    icon: 'assets/sprites/item_assaultrifle.png'
                 },
                 {
                     id: 'assault_rifle_mag_size',
@@ -130,7 +142,8 @@ class UpgradeSystem {
                     weaponIndex: 2,
                     upgradeType: 'magazineSize',
                     increment: 10,
-                    maxValue: 50
+                    maxValue: 50,
+                    icon: 'assets/sprites/item_assaultrifle.png'
                 },
                 {
                     id: 'assault_rifle_rate',
@@ -141,7 +154,8 @@ class UpgradeSystem {
                     upgradeType: 'cooldown',
                     increment: -25,
                     maxValue: 150,
-                    isReverse: true
+                    isReverse: true,
+                    icon: 'assets/sprites/item_assaultrifle.png'
                 }
             ]
         };

@@ -1,146 +1,280 @@
 class UpgradeDialog extends Phaser.Scene {
     constructor() {
         super({ key: 'UpgradeDialog' });
-        this.buttonBgs = [];
+        this.previousCursorState = null;
     }
 
-    init(data) {
-        this.playerRef = data.playerRef;
-        this.parentScene = data.parentScene;
+    preload() {
+        // Preload icons if they haven't been loaded yet
+        // This is a safety check in case the icons weren't preloaded in the main scene
+        const upgrades = window.upgradeSystem.upgrades;
+        const allUpgrades = [...upgrades.stats, ...upgrades.weapons];
+        
+        // Create a Set of unique icon paths
+        const uniqueIcons = new Set();
+        allUpgrades.forEach(upgrade => {
+            if (upgrade.icon) {
+                uniqueIcons.add(upgrade.icon);
+            }
+        });
+        
+        // Preload each unique icon
+        uniqueIcons.forEach(iconPath => {
+            const key = this.getIconKey(iconPath);
+            if (!this.textures.exists(key)) {
+                this.load.image(key, iconPath);
+            }
+        });
     }
 
+    // Helper method to convert icon path to a texture key
+    getIconKey(iconPath) {
+        return iconPath.split('/').pop().split('.')[0];
+    }
+
+    // Save the previous cursor state and show the default cursor
     create() {
-        // Set cursor to default for the dialog
-        this.input.setDefaultCursor('default');
-
-        const centerX = this.cameras.main.centerX;
-        const centerY = this.cameras.main.centerY;
-        const HUD_DEPTH = 6000;
-
-        // Create semi-transparent background
-        this.add.rectangle(0, 0, 
-            this.cameras.main.width,
-            this.cameras.main.height,
-            0x000000, 0.7)
+        // Store the previous cursor state
+        this.previousCursorState = this.input.defaultCursor;
+        
+        // Set cursor to default pointer
+        this.input.setDefaultCursor('pointer');
+        
+        // Set up background
+        const { width: gameWidth, height: gameHeight } = this.cameras.main;
+        const centerX = gameWidth / 2;
+        const centerY = gameHeight / 2;
+        
+        // Create semi-transparent black overlay
+        this.add.rectangle(0, 0, gameWidth, gameHeight, 0x000000, 0.7)
             .setOrigin(0)
             .setScrollFactor(0)
-            .setDepth(HUD_DEPTH);
-
-        // Create upgrade panel
-        this.add.rectangle(centerX, centerY,
-            500, 400,
-            0x333333)
-            .setScrollFactor(0)
-            .setDepth(HUD_DEPTH);
-
-        // Add "Please wait..." text that will fade out
-        const waitText = this.add.text(centerX, centerY - 120,
-            'Please wait...',
-            {
-                font: '20px Arial',
-                fill: '#ffff00',
-                align: 'center'
-            })
-            .setOrigin(0.5)
-            .setScrollFactor(0)
-            .setDepth(HUD_DEPTH + 1);
-
-        // Title
-        this.add.text(centerX, centerY - 160,
+            .setDepth(3000);
+        
+        // Title text
+        const titleY = centerY - 160;
+        const titleFontSize = 28;
+        const titleStrokeThickness = 4;
+        
+        this.add.text(centerX, titleY,
             'Leveled up! Choose Your Upgrade',
             {
-                font: '28px Arial',
+                font: `${titleFontSize}px Arial`,
                 fill: '#ffffff',
                 stroke: '#000000',
-                strokeThickness: 4,
+                strokeThickness: titleStrokeThickness,
                 fontStyle: 'bold'
             })
             .setOrigin(0.5)
             .setScrollFactor(0)
-            .setDepth(HUD_DEPTH);
-
+            .setDepth(3001);
+        
+        // Styles for buttons and descriptions
         const buttonStyle = {
             font: '20px Arial',
             fill: '#ffffff',
             align: 'center'
         };
-
+        
         const descStyle = {
-            font: '16px Arial',
+            font: '14px Arial',
             fill: '#cccccc',
-            wordWrap: { width: 300 },
+            wordWrap: { width: 280 }, // Reduced width to accommodate the icon
             align: 'center'
         };
-
-        const createUpgradeButton = (y, upgrade) => {
-            // Create background rectangle for button
-            const buttonBg = this.add.rectangle(centerX, y, 300, 40, 0x444444)
-                .setScrollFactor(0)
-                .setDepth(HUD_DEPTH);
-            
-            this.buttonBgs.push(buttonBg);
-
-            const button = this.add.text(centerX, y, upgrade.name, buttonStyle)
-                .setOrigin(0.5)
-                .setScrollFactor(0)
-                .setDepth(HUD_DEPTH + 1);
-
-            const desc = this.add.text(centerX, y + 25, upgrade.description, descStyle)
-                .setOrigin(0.5, 0)
-                .setScrollFactor(0)
-                .setDepth(HUD_DEPTH);
-
-            // Start with a darker color to indicate inactivity
-            buttonBg.setFillStyle(0x333333);
-
-            return { buttonBg, button, desc };
-        };
-
-        // Get random upgrades from the upgrade system
-        const upgrades = window.upgradeSystem.getUpgradeChoices();
-        const positions = [centerY - 80, centerY + 20, centerY + 120];
-
-        // Create upgrade buttons and store their elements
-        const buttons = upgrades.map((upgrade, index) => {
-            return {
-                ...createUpgradeButton(positions[index], upgrade),
-                upgrade
-            };
-        });        // Enable buttons after 1 second
-        this.time.delayedCall(1000, () => {
-            // Enable all buttons
-            buttons.forEach(({ buttonBg, button, upgrade }) => {
-                buttonBg.setFillStyle(0x444444);
-                buttonBg.setInteractive({ useHandCursor: true });
-
-                // Add hover effects
-                buttonBg.on('pointerover', () => {
-                    buttonBg.setFillStyle(0x666666);
-                    button.setStyle({ ...buttonStyle, fill: '#ffff00' });
-                });
-
-                buttonBg.on('pointerout', () => {
-                    buttonBg.setFillStyle(0x444444);
-                    button.setStyle(buttonStyle);
-                });
-
-                // Add click handler
-                buttonBg.on('pointerdown', () => {
-                    this.playerRef.applyUpgrade(upgrade);
-                    // Reset cursor back to none (crosshair) before resuming game
-                    this.input.setDefaultCursor('none');
-                    this.scene.resume('TestLevel');
-                    this.scene.stop();
-                });
-            });
-            
-            // Fade out the wait text
-            this.tweens.add({
-                targets: waitText,
-                alpha: 0,
-                duration: 500,
-                onComplete: () => waitText.destroy()
-            });
+        
+        // Track button objects for hover effects
+        this.buttons = [];
+        this.buttonBgs = [];
+        
+        // Get upgrade choices from the upgrade system
+        const upgradeChoices = window.upgradeSystem.getUpgradeChoices();
+        
+        // Create buttons at specific vertical positions
+        const positions = [centerY - 60, centerY + 40, centerY + 140];
+        
+        upgradeChoices.forEach((upgrade, index) => {
+            const y = positions[index];
+            // Pass the styles as parameters to createUpgradeButton
+            const buttonObj = this.createUpgradeButton(y, upgrade, buttonStyle, descStyle);
+            this.buttons.push(buttonObj);
         });
+        
+        // Add keyboard handlers for selecting upgrades (1-3 keys)
+        this.input.keyboard.on('keydown-ONE', () => this.selectUpgrade(0));
+        this.input.keyboard.on('keydown-TWO', () => this.selectUpgrade(1));
+        this.input.keyboard.on('keydown-THREE', () => this.selectUpgrade(2));
+        
+        // Store upgrade choices for reference
+        this.upgradeChoices = upgradeChoices;
+        
+        // Start with all buttons active
+        this.activateButtons();
+    }
+
+    createUpgradeButton(y, upgrade, buttonStyle, descStyle) {
+        const centerX = this.cameras.main.width / 2;
+        const HUD_DEPTH = 3001;
+        
+        // Create background rectangle for button
+        const buttonWidth = 360; // Increased from 300 to 360 for wider buttons
+        const buttonHeight = 70; 
+        
+        const buttonBg = this.add.rectangle(centerX, y, buttonWidth, buttonHeight, 0x444444)
+            .setScrollFactor(0)
+            .setDepth(HUD_DEPTH)
+            .setInteractive()
+            .on('pointerover', () => {
+                buttonBg.setFillStyle(0x666666);
+            })
+            .on('pointerout', () => {
+                buttonBg.setFillStyle(0x444444);
+            })
+            .on('pointerdown', () => {
+                this.selectUpgrade(this.buttonBgs.indexOf(buttonBg));
+            });
+    
+        this.buttonBgs.push(buttonBg);
+    
+        // Add the icon (made smaller)
+        let icon = null;
+        if (upgrade.icon) {
+            const iconKey = this.getIconKey(upgrade.icon);
+            icon = this.add.image(centerX - 140, y, iconKey)
+                .setScrollFactor(0)
+                .setDepth(HUD_DEPTH + 1)
+                .setScale(0.4); // Reduced from 0.5 to 0.4 for smaller icons
+        }
+    
+        // Adjust text position with more space for the wider button
+        const button = this.add.text(centerX - 100, y - 15, upgrade.name, buttonStyle)
+            .setOrigin(0, 0.5)
+            .setScrollFactor(0)
+            .setDepth(HUD_DEPTH + 1);
+    
+        // Update description text with more width for the wider button
+        const desc = this.add.text(centerX - 100, y, upgrade.description, {
+            ...descStyle,
+            wordWrap: { width: 280 } // Increased wordwrap width for the wider button
+        })
+            .setOrigin(0, 0)
+            .setScrollFactor(0)
+            .setDepth(HUD_DEPTH);
+    
+        return { buttonBg, button, desc, icon };
+    }
+
+    activateButtons() {
+        this.buttonBgs.forEach(bg => {
+            bg.setInteractive();
+        });
+    }
+    
+    deactivateButtons() {
+        this.buttonBgs.forEach(bg => {
+            bg.disableInteractive();
+        });
+    }
+
+    selectUpgrade(index) {
+        if (index < 0 || index >= this.upgradeChoices.length) return;
+        
+        // Prevent multiple selections
+        this.deactivateButtons();
+        
+        const selectedUpgrade = this.upgradeChoices[index];
+        
+        // Highlight the selected button
+        const selectedBg = this.buttonBgs[index];
+        if (selectedBg) {
+            selectedBg.setFillStyle(0x00aa00); // Green highlight
+        }
+        
+        // Apply upgrade effect based on type
+        if (selectedUpgrade.type === 'stats') {
+            this.applyStatsUpgrade(selectedUpgrade);
+        } else if (selectedUpgrade.type === 'weapons') {
+            this.applyWeaponUpgrade(selectedUpgrade);
+        }
+        
+                
+        // Close dialog after brief delay to show the selection
+        this.time.delayedCall(500, () => {
+            // Restore previous cursor state before returning to the game scene
+            if (this.previousCursorState !== null) {
+                this.input.setDefaultCursor(this.previousCursorState);
+            }
+            
+            this.scene.resume('TestLevel');
+            this.scene.stop();
+        });
+    }
+    
+    applyStatsUpgrade(upgrade) {
+        // Apply stats upgrades to player
+        const playerStats = window.playerStats;
+        
+        switch (upgrade.id) {
+            case 'health':
+                playerStats.maxHealth += 5;
+                playerStats.health = Math.min(playerStats.health + 5, playerStats.maxHealth);
+                break;
+            case 'armor':
+                playerStats.maxArmor += 5;
+                playerStats.armor = Math.min(playerStats.armor + 5, playerStats.maxArmor);
+                break;
+            case 'stamina':
+                playerStats.maxStamina += 5;
+                playerStats.stamina = playerStats.maxStamina; // Refill stamina
+                break;
+            // Handle any other stats upgrades
+        }
+    }
+    
+    applyWeaponUpgrade(upgrade) {
+        // Apply weapon upgrades
+        const weapon = window.WEAPONS[upgrade.weaponIndex];
+        
+        if (!weapon) return;
+        
+        // Unlock weapon if it's not already unlocked
+        if (upgrade.id.includes('unlock') && !weapon.unlocked) {
+            weapon.unlocked = true;
+            return;
+        }
+        
+        // Handle various weapon attribute upgrades
+        if (upgrade.upgradeType) {
+            const currentValue = weapon[upgrade.upgradeType];
+            const increment = upgrade.increment || 1;
+            
+            weapon[upgrade.upgradeType] = currentValue + increment;
+            
+            // If this is an ammo-related upgrade, also update current ammo
+            if (upgrade.upgradeType === 'magazineSize') {
+                weapon.ammo = weapon.magazineSize;
+            }
+        }
+    }
+
+    shutdown() {
+        // Ensure cursor state is restored if the scene is shut down
+        if (this.previousCursorState !== null) {
+            this.input.setDefaultCursor(this.previousCursorState);
+        }
+        
+        // Clean up any other resources
+        if (this.buttons) {
+            this.buttons.forEach(button => {
+                if (button.icon && button.icon.destroy) button.icon.destroy();
+                if (button.button && button.button.destroy) button.button.destroy();
+                if (button.desc && button.desc.destroy) button.desc.destroy();
+                if (button.buttonBg && button.buttonBg.destroy) button.buttonBg.destroy();
+            });
+        }
+        
+        this.buttons = [];
+        this.buttonBgs = [];
+        this.upgradeChoices = null;
     }
 }

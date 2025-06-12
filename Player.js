@@ -2,16 +2,17 @@
 class Player {    constructor(scene, x, y) {
         this.scene = scene;
         this.sprite = scene.add.sprite(x, y, 'player', 0);
-        this.spriteScale = 0.8; // 20% smaller
-        const baseWidth = 104;
-        const baseHeight = 128;
-        this.sprite.setDisplaySize(baseWidth * this.spriteScale, baseHeight * this.spriteScale);
+        // Apply gameScale to player size
+        const scaledWidth = 104 * window.gameScale;
+        const scaledHeight = 128 * window.gameScale;
+        this.sprite.setDisplaySize(scaledWidth, scaledHeight);
+        // Set player depth to player range (900-999)
+        this.sprite.setDepth(999);
         scene.physics.add.existing(this.sprite);
-        this.sprite.body.setCollideWorldBounds(true);
-        this.baseSpeed = 400;
+        this.sprite.body.setCollideWorldBounds(true);        this.baseSpeed = 400 * window.gameScale;
         this.isDodging = false;
         this.dodgeCooldown = 800;
-        this.dodgeDistance = 180;
+        this.dodgeDistance = 180 * window.gameScale;
         this.dodgeDuration = 120;
         this.lastDodgeTime = -Infinity;
 
@@ -33,7 +34,7 @@ class Player {    constructor(scene, x, y) {
         
         // Calculate speed with percentage bonus
         this.speed = this.baseSpeed * (1 + (speedBonus / 100));
-        this.stats = {
+          this.stats = {
             health: baseHealth + healthBonus,
             maxHealth: baseHealth + healthBonus,
             armor: 0,
@@ -42,77 +43,14 @@ class Player {    constructor(scene, x, y) {
             maxStamina: baseStamina + staminaBonus,
             criticalHitChance: criticalHitUpgradeLevel,
             level: 1,
-            experience: 0
+            experience: 90
         };
-
-        // Set up controls based on device type
-        this.isMobile = !scene.sys.game.device.os.desktop;
-        
-        if (this.isMobile) {
-            // Get the actual display dimensions accounting for scale
-            const displayWidth = scene.cameras.main.width;
-            const displayHeight = scene.cameras.main.height;
-            
-            // Create movement joystick (bottom left)
-            const baseMoveJoy = scene.add.circle(0, 0, 80, 0x888888)
-                .setAlpha(0.5)
-                .setDepth(1000)
-                .setScrollFactor(0)
-                .setPosition(80, displayHeight - 80);
-                
-            const thumbMoveJoy = scene.add.circle(0, 0, 40, 0xcccccc)
-                .setAlpha(0.8)
-                .setDepth(1000)
-                .setScrollFactor(0)
-                .setPosition(80, displayHeight - 80);
-            
-            this.moveJoystick = scene.rexVirtualJoystick.add({
-                x: 80,
-                y: displayHeight - 80,
-                radius: 80,
-                base: baseMoveJoy,
-                thumb: thumbMoveJoy,
-                fixed: true,
-                enable: true
-            });
-
-            // Create shooting joystick (bottom right)
-            const baseShootJoy = scene.add.circle(0, 0, 80, 0x888888)
-                .setAlpha(0.5)
-                .setDepth(1000)
-                .setScrollFactor(0)
-                .setPosition(displayWidth - 80, displayHeight - 80);
-                
-            const thumbShootJoy = scene.add.circle(0, 0, 40, 0xcccccc)
-                .setAlpha(0.8)
-                .setDepth(1000)
-                .setScrollFactor(0)
-                .setPosition(displayWidth - 80, displayHeight - 80);
-            
-            this.shootJoystick = scene.rexVirtualJoystick.add({
-                x: displayWidth - 80,
-                y: displayHeight - 80,
-                radius: 80,
-                base: baseShootJoy,
-                thumb: thumbShootJoy,
-                fixed: true,
-                enable: true
-            });
-
-            // Make sure joysticks are visible
-            this.moveJoystick.base.setVisible(true);
-            this.moveJoystick.thumb.setVisible(true);
-            this.shootJoystick.base.setVisible(true);
-            this.shootJoystick.thumb.setVisible(true);
-        } else {
-            this.cursors = scene.input.keyboard.addKeys({
-                up: Phaser.Input.Keyboard.KeyCodes.W,
-                down: Phaser.Input.Keyboard.KeyCodes.S,
-                left: Phaser.Input.Keyboard.KeyCodes.A,
-                right: Phaser.Input.Keyboard.KeyCodes.D
-            });
-        }
-
+        this.cursors = scene.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.W,
+            down: Phaser.Input.Keyboard.KeyCodes.S,
+            left: Phaser.Input.Keyboard.KeyCodes.A,
+            right: Phaser.Input.Keyboard.KeyCodes.D
+        });
         this.setupDodge();
 
         this.isInvulnerable = false;
@@ -322,36 +260,36 @@ class Player {    constructor(scene, x, y) {
         this.speed = this.baseSpeed * (1 + (speedBonus / 100));
 
         let vx = 0, vy = 0;
+        
         if (!this.isDodging) {
-            if (this.isMobile) {
-                // Handle joystick movement
-                if (this.moveJoystick.force) {
-                    vx = this.moveJoystick.forceX * this.speed;
-                    vy = this.moveJoystick.forceY * this.speed;
-                }
-
-                // Handle shooting direction if right joystick is active
-                if (this.shootJoystick.force > 0) {
-                    // Add a property for shooting direction that weapons can use
-                    this.shootAngle = this.shootJoystick.rotation;
+            // Check if we're on mobile or desktop
+            const isMobile = this.scene.isMobile && this.scene.mobileControls;
+            
+            if (isMobile) {
+                // Mobile controls - get movement values from joystick
+                const mobileControls = this.scene.mobileControls;
+                if (mobileControls) {
+                    vx = mobileControls.moveJoyX * this.speed;
+                    vy = mobileControls.moveJoyY * this.speed;
                 }
             } else {
-                // Handle keyboard controls
+                // Desktop keyboard controls
                 if (this.cursors.left.isDown) vx = -this.speed;
                 else if (this.cursors.right.isDown) vx = this.speed;
                 if (this.cursors.up.isDown) vy = -this.speed;
                 else if (this.cursors.down.isDown) vy = this.speed;
             }
-
+            
+            // Apply velocity 
             this.sprite.body.setVelocity(vx, vy);
-            if (vx !== 0 && vy !== 0 && !this.isMobile) {
-                // Only normalize keyboard movement, joystick is already normalized
+            
+            // Normalize diagonal movement
+            if (vx !== 0 && vy !== 0) {
                 this.sprite.body.setVelocity(vx * 0.707, vy * 0.707);
             }
         } else {
             this.sprite.body.setVelocity(0, 0);
         }
-
         // Set frame based on direction
         if (vx === 0 && vy === 0) {
             this.sprite.setFrame(0);

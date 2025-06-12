@@ -1,6 +1,7 @@
 class TestLevel extends Phaser.Scene {
     constructor() {
         super({ key: 'TestLevel' });
+        this.isMobile = false;
     }
 
     preload() {
@@ -18,7 +19,10 @@ class TestLevel extends Phaser.Scene {
         this.load.audio('pickup_sound_small', 'assets/audio/ammopickup1.wav');
         this.load.audio('weapon_pickup', 'assets/audio/gunpickup2.wav');
         this.load.audio('powerup', 'assets/audio/smb_powerup.wav');
-        this.load.audio('coin_pickup', 'assets/audio/9mmclip1.wav');        // Item sprites
+        this.load.audio('coin_pickup', 'assets/audio/9mmclip1.wav');        
+        this.load.audio('weapon_switch', 'assets/audio/guncock1.wav');
+        
+        // Item sprites
         this.load.image('item_armor', 'assets/sprites/item_armor.png');
         this.load.image('item_armor_shard', 'assets/sprites/item_armor_shard.png');
         this.load.image('item_medkit', 'assets/sprites/item_medkit.png');
@@ -47,15 +51,18 @@ class TestLevel extends Phaser.Scene {
         // Load background tile
         this.load.image('tile_hell', 'assets/sprites/tile_hell1.png');
     }    create() {
+        // Check if we're on a mobile device
+        this.isMobile = DeviceDetector.isMobileDevice();
+
         // Reset player stats and registry at the start of the level
         window.playerStats.reset();
         this.registry.set('level', 1);
         this.registry.set('experience', 0);
-        
-        // Initialize properties
-        this.mapWidth = 2560;
-        this.mapHeight = 2560;
-        this.bulletSpeed = 600;
+          // Initialize properties
+        const baseMapDimension = 2200;
+        this.mapWidth = baseMapDimension;
+        this.mapHeight = baseMapDimension; 
+        this.bulletSpeed = 600 * window.gameScale;
         this.bulletLifetime = 1200;
         this.currentWeaponIndex = 0;
         this.audioVolume = 0.2;
@@ -72,13 +79,16 @@ class TestLevel extends Phaser.Scene {
         // Initialize wave system
         this.waveSystem = new WaveSystem(this);
     }    setupBackground() {
-        const tileScale = 0.8; // 20% smaller
+        // Apply gameScale to tile size
         const baseTileSize = 64;
-        const tileSize = baseTileSize * tileScale;
+        const tileSize = baseTileSize * window.gameScale;
+        
+        // Calculate needed tiles based on map dimensions and scaled tile size
         for (let x = 0; x < this.mapWidth; x += tileSize) {
             for (let y = 0; y < this.mapHeight; y += tileSize) {
                 const tile = this.add.image(x + tileSize/2, y + tileSize/2, 'tile_hell');
-                tile.setDisplaySize(tileSize, tileSize);
+                tile.setDisplaySize(tileSize, tileSize); // Scale the tile according to gameScale
+                tile.setDepth(0) // Background elements: 0-99
             }
         }
     }setupBullets() {
@@ -92,11 +102,13 @@ class TestLevel extends Phaser.Scene {
             maxSize: 50,
             runChildUpdate: true
         });
-    }    setupPlayer() {
+    }    
+    setupPlayer() {
         this.player = new Player(this, this.mapWidth / 2, this.mapHeight / 2);
         this.player.stats.coins = 0; // Initialize coins
         this.registry.set('coins', 0); // Initialize coins in registry
         this.playerStats = this.player.stats;
+        this.player.sprite.setDepth(999); // Use a high value to ensure it's above other objects
         
         // Set world bounds
         this.physics.world.setBounds(0, 0, this.mapWidth, this.mapHeight);
@@ -110,22 +122,20 @@ class TestLevel extends Phaser.Scene {
         this.enemies = [];
         this.enemyGroup = this.physics.add.group();
         window._enemies = this.enemies;
-    }
-
-    setupItems() {
+    }    setupItems() {
         this.itemGroup = this.physics.add.group();
 
         // Helper function to create floating items with bob animation
-        const createFloatingItem = (x, y, sprite, scale = 0.5) => {
+        const createFloatingItem = (x, y, sprite, baseScale = 0.5) => {
             const item = this.add.sprite(x, y, sprite);
-            item.setScale(scale);
+            // Apply gameScale to item scale
+            item.setScale(baseScale * window.gameScale);
             this.physics.add.existing(item);
             this.itemGroup.add(item);
-            
-            // Add floating animation
+              // Add floating animation with scaled bobbing height
             this.tweens.add({
                 targets: item,
-                y: item.y - 10,
+                y: item.y - (10 * window.gameScale),
                 duration: 1000,
                 yoyo: true,
                 repeat: -1,
@@ -166,19 +176,25 @@ class TestLevel extends Phaser.Scene {
         //     );
         //     shard.itemType = 'armor_shard';
         // }
-    }
-
-    setupUI() {
-        // Add tooltip text
+    }    setupUI() {        // Add tooltip text - different for mobile vs desktop
+        const tooltipMessage = this.isMobile ? 
+            'Use joysticks to move and shoot, tap weapon icons to switch' :
+            'WASD = move, R = reload, Space = dodge';
+        
         const tooltipText = this.add.text(
             this.cameras.main.width - 24,
             18,
-            'WASD = move, R = reload, Space = dodge, K = toggle enemies',
+            tooltipMessage,
             {
-                font: '16px Arial',
+                font: `${Math.round(18 * window.gameScale)}px Arial`,
                 fill: '#cccccc',
                 backgroundColor: 'rgba(34,34,34,0.7)',
-                padding: { left: 8, right: 8, top: 4, bottom: 4 },
+                padding: { 
+                    left: Math.round(8 * window.gameScale), 
+                    right: Math.round(8 * window.gameScale), 
+                    top: Math.round(4 * window.gameScale), 
+                    bottom: Math.round(4 * window.gameScale) 
+                },
                 align: 'right',
                 fontStyle: 'bold'
             }
@@ -186,20 +202,74 @@ class TestLevel extends Phaser.Scene {
 
         this.scale.on('resize', (gameSize) => {
             tooltipText.x = gameSize.width - 24;
-        });
-
-        // Custom cursor (crosshair)
+        });// Custom cursor (crosshair)
         this.input.setDefaultCursor('none');
         this.crosshair = this.add.image(0, 0, 'crosshair').setDepth(1000);
         this.crosshair.setOrigin(0.5, 0.5);
-        this.crosshair.setScale(1);
-        this.crosshair.setScrollFactor(0);        // Set up HUD
+        this.crosshair.setScale(window.gameScale); // Scale the crosshair
+        this.crosshair.setScrollFactor(0);// Set up HUD
         this.currentWeaponIndexRef = { value: this.currentWeaponIndex };
         this.currentWeapon = window.WEAPONS[this.currentWeaponIndex];
         this.playerHUD = new PlayerHUD(this, this.playerStats, window.WEAPONS, this.currentWeaponIndexRef);
         this.updateHUD = () => this.playerHUD.updateHUD();
         this.updateHUD();
     }    setupInput() {
+        // Detect device type and set up appropriate controls
+        if (this.isMobile) {
+            this.setupMobileControls();
+        } else {
+            this.setupDesktopControls();
+        }
+        
+        // Make sure cursor is reset to appropriate type when scene resumes
+        this.events.on('resume', () => {
+            if (!this.isMobile) {
+                this.input.setDefaultCursor('none');
+            }
+        });
+
+        // Add continuous firing check for automatic weapons (works for both mobile and desktop)
+        this.time.addEvent({
+            delay: 16, // Check roughly every frame
+            loop: true,
+            callback: () => {
+                if (this.isMobile) {
+                    // For mobile, check the shooting joystick
+                    if (this.mobileControls && 
+                        this.mobileControls.isShooting && 
+                        !this.player.isDead && 
+                        !this.currentWeapon.reloading) {
+                        
+                        // Handle all weapon types with proper rate of fire
+                        const now = this.time.now;
+                        const timeSinceLastShot = now - (this.currentWeapon.lastShotTime || 0);
+                        
+                        if (timeSinceLastShot >= this.currentWeapon.cooldown) {
+                            // For automatic weapons, shoot continuously
+                            if (this.currentWeapon.rateOfFire === 'fullauto') {
+                                this.shootWithMobileJoystick();
+                            } 
+                            // For semi-auto weapons, shoot only when joystick direction changes
+                            else if (this.mobileControls.justStartedShooting) {
+                                this.shootWithMobileJoystick();
+                            }
+                        }
+                    }
+                } else {
+                    // For desktop, use the pointer
+                    if (this.input.activePointer.isDown && 
+                        !this.player.isDead && 
+                        !this.currentWeapon.reloading) {
+                        if (this.currentWeapon && this.currentWeapon.rateOfFire === 'fullauto') {
+                            this.shootBullet(this.input.activePointer);
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    setupDesktopControls() {
         // Crosshair movement
         this.input.on('pointermove', pointer => {
             this.crosshair.x = pointer.x;
@@ -209,32 +279,14 @@ class TestLevel extends Phaser.Scene {
         // Set custom cursor to none (show crosshair instead)
         this.input.setDefaultCursor('none');
 
-        // Make sure cursor is reset to none when scene resumes
-        this.events.on('resume', () => {
-            this.input.setDefaultCursor('none');
-        });
-
         // Add click handling for shooting
         this.input.on('pointerdown', pointer => {
             if (!this.player.isDead && !this.currentWeapon.reloading) {
                 this.shootBullet(pointer);
             }
         });
-          // Add continuous firing check for automatic weapons
-        this.time.addEvent({
-            delay: 16, // Check roughly every frame
-            loop: true,
-            callback: () => {
-                if (this.input.activePointer.isDown && !this.player.isDead && !this.currentWeapon.reloading) {
-                    // Only auto-fire if the weapon is full auto
-                    if (this.currentWeapon && this.currentWeapon.rateOfFire === 'fullauto') {
-                        this.shootBullet(this.input.activePointer);
-                    }
-                }
-            }
-        });
 
-        // Weapon switching
+        // Weapon switching with keyboard
         this.input.keyboard.on('keydown-ONE', () => this.selectWeapon(0));
         this.input.keyboard.on('keydown-TWO', () => {
             if (window.WEAPONS[1].unlocked) {
@@ -257,7 +309,44 @@ class TestLevel extends Phaser.Scene {
             this.input.setDefaultCursor('default');
         });
     }
+    
+    setupMobileControls() {
+        // Create mobile controls
+        this.mobileControls = new MobileControls(this);
+        this.mobileControls.create();
+        
+        // Hide crosshair on mobile
+        if (this.crosshair) {
+            this.crosshair.setVisible(false);
+        }
+        
+        // Set default cursor for mobile
+        this.input.setDefaultCursor('default');
+        
+        // Setup touch handling for weapon selection
+        this.makeWeaponSlotsInteractive();
+    }
 
+    makeWeaponSlotsInteractive() {
+        // Make weapon slots interactive for mobile touch
+        if (this.playerHUD && this.playerHUD.weaponSlots) {
+            this.playerHUD.weaponSlots.forEach((slot, index) => {
+                if (slot.bg && window.WEAPONS[index].unlocked) {
+                    slot.bg.setInteractive();
+                    slot.sprite.setInteractive();
+                    
+                    // Touch handlers for weapon selection
+                    const touchHandler = () => {
+                        this.selectWeapon(index);
+                    };
+                    
+                    slot.bg.on('pointerdown', touchHandler);
+                    slot.sprite.on('pointerdown', touchHandler);
+                }
+            });
+        }
+    }
+    
     setupCollisions() {
         // Bullet-enemy collision
         this.physics.add.overlap(
@@ -285,14 +374,39 @@ class TestLevel extends Phaser.Scene {
             null,
             this
         );
-    }
-
+    }    
     update(time, delta) {
         // Update enemies
         if (this.enemies) {
             for (let enemy of this.enemies) {
                 if (enemy && typeof enemy.update === 'function') {
                     enemy.update();
+                }
+            }
+        }
+
+        // Update mobile controls
+        if (this.isMobile && this.mobileControls) {
+            this.mobileControls.update();
+            
+            // Process mobile shooting for non-automatic weapons
+            if (this.mobileControls.isShooting && 
+                !this.player.isDead && 
+                !this.currentWeapon.reloading && 
+                this.currentWeapon.rateOfFire !== 'fullauto') {
+                this.shootWithMobileJoystick();
+            }
+            
+            // Update crosshair position for mobile (hidden but used for calculating shot direction)
+            if (this.crosshair) {
+                const shootJoyX = this.mobileControls.shootJoyX;
+                const shootJoyY = this.mobileControls.shootJoyY;
+                
+                if (shootJoyX !== 0 || shootJoyY !== 0) {
+                    // Calculate where the crosshair would be based on joystick
+                    const distance = 100; // Virtual distance
+                    this.crosshair.x = this.player.sprite.x + (shootJoyX * distance);
+                    this.crosshair.y = this.player.sprite.y + (shootJoyY * distance);
                 }
             }
         }
@@ -332,6 +446,37 @@ class TestLevel extends Phaser.Scene {
         if (this.crosshair) {
             this.crosshair.depth = 1000;
         }
+
+        // Add this code to check for weapon changes from the HUD
+        if (this.currentWeaponIndexRef && this.currentWeaponIndex !== this.currentWeaponIndexRef.value) {
+            // Update the current weapon index to match what was selected in HUD
+            this.currentWeaponIndex = this.currentWeaponIndexRef.value;
+            // Update the current weapon reference
+            this.currentWeapon = window.WEAPONS[this.currentWeaponIndex];
+            
+            // Optional - play sound effect to confirm weapon change
+            if (this.sound) {
+                this.sound.play('weapon_switch', { volume: this.audioVolume });
+            }
+        }
+
+        // Update reload bar position to follow player if it exists
+        if (this.reloadBarBg && this.player && this.player.sprite) {
+            const barY = this.player.sprite.y - 80 * window.gameScale;
+            
+            this.reloadBarBg.x = this.player.sprite.x;
+            this.reloadBarBg.y = barY;
+            
+            if (this.reloadBarFill) {
+                this.reloadBarFill.x = this.player.sprite.x - (this.reloadBarFill.width / 2);
+                this.reloadBarFill.y = barY;
+            }
+            
+            if (this.reloadBarText) {
+                this.reloadBarText.x = this.player.sprite.x;
+                this.reloadBarText.y = barY - 5 * window.gameScale;
+            }
+        }
     }
 
     // Helper methods
@@ -344,7 +489,27 @@ class TestLevel extends Phaser.Scene {
                 this.updateHUD();
             }
         }
-    }    shootBullet(pointer) {
+    }    
+    
+    shootBullet(pointer) {
+        const currentWeapon = this.currentWeapon;
+        
+        // Check if weapon is reloading
+        if (currentWeapon.reloading) {
+            // Allow shotgun to fire mid-reload, cancelling the remaining reload
+            if (currentWeapon.name === 'Shotgun' && currentWeapon.canCancelReload && currentWeapon.ammo > 0) {
+                // Cancel the reload event
+                if (this.shellReloadEvent) {
+                    this.shellReloadEvent.remove();
+                }
+                currentWeapon.reloading = false;
+                this.destroyReloadBar(); // Remove the reload bar when cancelling reload
+            } else {
+                // Other weapons can't fire while reloading
+                return;
+            }
+        }
+        
         const now = this.time.now;
 
         // Initialize last shot time if not set
@@ -391,16 +556,18 @@ class TestLevel extends Phaser.Scene {
 
             if (!bullet.body) {
                 this.physics.add.existing(bullet);
-            }
-
-            bullet.setFillStyle(this.currentWeapon.color);
-            bullet.setSize(12, 12);
+            }            bullet.setFillStyle(this.currentWeapon.color);
+            // Scale bullet size according to gameScale
+            const bulletSize = Math.round(12 * window.gameScale);
+            bullet.setSize(bulletSize, bulletSize);
             bullet.setActive(true);
             bullet.setVisible(true);
             bullet.x = this.player.sprite.x;
             bullet.y = this.player.sprite.y;
             bullet.body.enable = true;
             bullet.body.setAllowGravity(false);
+            // Set depth for bullets slightly higher than items but below enemies
+            bullet.setDepth(300);
             bullet.body.setVelocity(
                 Math.cos(angle) * this.bulletSpeed,
                 Math.sin(angle) * this.bulletSpeed
@@ -409,81 +576,309 @@ class TestLevel extends Phaser.Scene {
         }
     }
 
-    reloadWeapon(index) {
-        let w = window.WEAPONS[index];
-        if (w.reloading || w.magazineSize === -1) return;
+    shootWithMobileJoystick() {
+        if (!this.mobileControls || this.player.isDead || this.currentWeapon.reloading) {
+            return;
+        }
         
-        w.reloading = true;
-        if (typeof this.updateHUD === 'function') this.updateHUD();
-
-        // Create reload progress bar
-        const barWidth = 80;
-        const barHeight = 12;
-        const barY = 80;
-
-        const reloadBarBg = this.add.rectangle(
-            this.player.sprite.x,
-            this.player.sprite.y + barY,
-            barWidth,
-            barHeight,
-            0x000000,
-            0.8
-        ).setDepth(999);
-
-        const reloadBar = this.add.rectangle(
-            this.player.sprite.x - barWidth/2,
-            this.player.sprite.y + barY,
-            0,
-            barHeight - 2,
-            0x00ff00,
-            1
-        ).setDepth(999);
-        reloadBar.setOrigin(0, 0.5);
-
-        let totalReloadTime = w.reloadTime;
-        if (w.name === 'Shotgun') {
-            const shellsToReload = w.magazineSize - w.ammo;
-            totalReloadTime = w.reloadTime * shellsToReload;
+        const now = this.time.now;
+        
+        // Initialize last shot time if not set
+        if (!this.currentWeapon.lastShotTime) this.currentWeapon.lastShotTime = 0;
+        
+        // Check if enough time has passed since last shot based on weapon cooldown
+        const timeSinceLastShot = now - this.currentWeapon.lastShotTime;
+        if (timeSinceLastShot < this.currentWeapon.cooldown) {
+            return; // Still in cooldown period
+        }
+          // Handle ammo and reloading
+        if (this.currentWeapon.magazineSize !== -1) {
+            if (this.currentWeapon.reloading) return;
+            if (this.currentWeapon.ammo < 1) {
+                this.reloadWeapon(this.currentWeaponIndex);
+                if (typeof this.updateHUD === 'function') this.updateHUD();
+                return;
+            }
+            this.currentWeapon.ammo -= 1;
+            if (typeof this.updateHUD === 'function') this.updateHUD();
+        }
+        
+        this.currentWeapon.lastShotTime = now;
+        
+        if (this.currentWeapon.shootSound) {
+            this.sound.play(this.currentWeapon.shootSound, { volume: this.audioVolume });
+        }
+        
+        // Get shooting angle from joystick
+        const joyX = this.mobileControls.shootJoyX;
+        const joyY = this.mobileControls.shootJoyY;
+        
+        if (joyX === 0 && joyY === 0) return; // No direction to shoot
+        
+        const angle = Math.atan2(joyY, joyX);
+        
+        for (let i = 0; i < this.currentWeapon.bulletsPerShot; i++) {
+            let shotAngle = angle;
+            if (this.currentWeapon.spread && this.currentWeapon.bulletsPerShot > 1) {
+                const spreadRad = Phaser.Math.DegToRad(this.currentWeapon.spread);
+                shotAngle = angle - spreadRad/2 + (spreadRad/(this.currentWeapon.bulletsPerShot-1))*i;
+            }
             
-            for (let i = 0; i < shellsToReload; i++) {
-                this.time.delayedCall(i * w.reloadTime, () => {
-                    if (w.reloadSound) {
-                        this.sound.play(w.reloadSound, { volume: this.audioVolume });
+            let bullet = this.bullets.get();
+            if (!bullet) continue;
+            
+            if (!bullet.body) {
+                this.physics.add.existing(bullet);
+            }
+            
+            bullet.setFillStyle(this.currentWeapon.color);
+            
+            // Scale bullet size according to gameScale
+            const bulletSize = Math.round(12 * window.gameScale);
+            bullet.setSize(bulletSize, bulletSize);
+            
+            // Set bullet position to start from player
+            bullet.x = this.player.sprite.x;
+            bullet.y = this.player.sprite.y;
+            
+            // Set bullet active and visible
+            bullet.setActive(true);
+            bullet.setVisible(true);
+            bullet.body.enable = true;
+            
+            // Calculate velocity
+            const vx = Math.cos(shotAngle) * this.bulletSpeed;
+            const vy = Math.sin(shotAngle) * this.bulletSpeed;
+            
+            // Set bullet velocity and track spawn time
+            bullet.body.setVelocity(vx, vy);
+            bullet.spawnTime = now;
+            bullet.damage = this.currentWeapon.damage;
+            
+            // Critical hit calculation based on player's critical hit chance
+            const criticalHitChance = this.player.stats.criticalHitChance;
+            bullet.isCritical = Phaser.Math.Between(0, 99) < criticalHitChance;
+            
+            // If critical, double the damage
+            if (bullet.isCritical) {
+                bullet.damage *= 2;
+                bullet.setFillStyle(0xff9900); // Yellow-orange for crits
+            }
+        }
+    }
+
+    reloadWeapon() {
+        const currentWeapon = this.currentWeapon;
+        
+        // Don't reload if already reloading or magazine is full
+        if (!currentWeapon.reloading && currentWeapon.ammo < currentWeapon.magazineSize) {
+            // Start the reload process
+            currentWeapon.reloading = true;
+            
+            // Create reload progress bar
+            this.createReloadBar();
+            
+            // Special handling for shotgun - reload one shell at a time
+            if (currentWeapon.name === 'Shotgun') {
+                // Calculate how many shells need to be loaded
+                const shellsToLoad = currentWeapon.magazineSize - currentWeapon.ammo;
+                
+                // Play initial reload sound
+                this.sound.play('shotgun_reload', { volume: this.audioVolume });
+                
+                // Increment ammo by 1 for first shell
+                currentWeapon.ammo++;
+                
+                // Update reload bar for first shell
+                this.updateReloadBar(1/shellsToLoad);
+                
+                // If only one shell needs to be loaded, we're done after the first shell
+                if (shellsToLoad === 1) {
+                    this.time.delayedCall(currentWeapon.reloadTime, () => {
+                        currentWeapon.reloading = false;
+                        this.destroyReloadBar();
+                        
+                        if (this.updateHUD) {
+                            this.updateHUD();
+                        }
+                    });
+                    return;
+                }
+                
+                // For multiple shells, set up a recurring event
+                let shellsLoaded = 1; // Already loaded one shell
+                
+                this.shellReloadEvent = this.time.addEvent({
+                    delay: currentWeapon.reloadTime,
+                    callback: () => {
+                        // Add one shell
+                        currentWeapon.ammo++;
+                        shellsLoaded++;
+                        
+                        // Update reload bar
+                        this.updateReloadBar(shellsLoaded/shellsToLoad);
+                        
+                        // Play reload sound for each shell
+                        this.sound.play('shotgun_reload', { volume: this.audioVolume * 0.7 });
+                        
+                        // Update HUD after each shell
+                        if (this.updateHUD) {
+                            this.updateHUD();
+                        }
+                        
+                        // Check if magazine is full or reload was interrupted
+                        if (currentWeapon.ammo >= currentWeapon.magazineSize || !currentWeapon.reloading) {
+                            // Finish reloading
+                            currentWeapon.reloading = false;
+                            this.destroyReloadBar();
+                            this.shellReloadEvent.remove();
+                        }
+                    },
+                    callbackScope: this,
+                    repeat: shellsToLoad - 2  // We've already loaded 1, and repeat is 0-indexed
+                });
+                
+                // Allow player to cancel reload by firing
+                currentWeapon.canCancelReload = true;
+            } else {
+                // Regular weapons reload all at once
+                currentWeapon.lastShotTime = this.time.now; // Prevent shooting during reload
+                
+                // Play reload sound
+                this.sound.play('generic_reload', { volume: this.audioVolume });
+                
+                // Create reload progress tween
+                this.reloadTween = this.tweens.add({
+                    targets: { progress: 0 },
+                    progress: 1,
+                    duration: currentWeapon.reloadTime,
+                    ease: 'Linear',
+                    onUpdate: (tween) => {
+                        const progress = tween.getValue();
+                        this.updateReloadBar(progress);
+                    },
+                    onComplete: () => {
+                        // Only complete reload if still reloading (not cancelled)
+                        if (currentWeapon.reloading) {
+                            // Refill ammo
+                            currentWeapon.ammo = currentWeapon.magazineSize;
+                            currentWeapon.reloading = false;
+                            this.destroyReloadBar();
+                            
+                            // Update HUD
+                            if (this.updateHUD) {
+                                this.updateHUD();
+                            }
+                        }
                     }
                 });
+                
+                currentWeapon.canCancelReload = false;
             }
-        } else if (w.reloadSound) {
-            this.sound.play(w.reloadSound, { volume: this.audioVolume });
+            
+            // Update HUD to show "Reloading..." status
+            if (this.updateHUD) {
+                this.updateHUD();
+            }
         }
+    }
 
-        const updateBarPosition = () => {
-            if (reloadBarBg && reloadBarBg.active) {
-                reloadBarBg.x = this.player.sprite.x;
-                reloadBarBg.y = this.player.sprite.y + barY;
-                reloadBar.x = this.player.sprite.x - barWidth/2;
-                reloadBar.y = this.player.sprite.y + barY;
+    // Add these new methods to create, update, and destroy the reload bar
+    createReloadBar() {
+        // Destroy existing reload bar if it exists
+        this.destroyReloadBar();
+        
+        const barWidth = 80 * window.gameScale;
+        const barHeight = 10 * window.gameScale;
+        const padding = 2 * window.gameScale;
+        const HUD_DEPTH = 3500;
+        
+        // Position near the player
+        const barY = this.player.sprite.y - 60 * window.gameScale;
+        
+        // Create background bar
+        this.reloadBarBg = this.add.rectangle(
+            this.player.sprite.x,
+            barY,
+            barWidth + padding * 2,
+            barHeight + padding * 2,
+            0x000000, 0.7
+        ).setDepth(HUD_DEPTH);
+        
+        // Create fill bar
+        this.reloadBarFill = this.add.rectangle(
+            this.player.sprite.x - barWidth/2,
+            barY,
+            0, // Start with 0 width
+            barHeight,
+            0x00ff00, 0.9
+        ).setOrigin(0, 0.5).setDepth(HUD_DEPTH + 1);
+        
+        // Create text
+        this.reloadBarText = this.add.text(
+            this.player.sprite.x,
+            barY - barHeight - 5 * window.gameScale,
+            'RELOADING',
+            {
+                font: `${Math.round(18 * window.gameScale)}px Arial`,
+                fill: '#ffffff',
+                align: 'center',
+                stroke: '#000000',
+                strokeThickness: 3
             }
-        };
+        ).setOrigin(0.5, 1).setDepth(HUD_DEPTH + 2);
+    }
 
-        const updateEvent = this.events.addListener('postupdate', updateBarPosition);
+    updateReloadBar(progress) {
+        if (!this.reloadBarFill || !this.reloadBarBg) return;
+        
+        const barWidth = 80 * window.gameScale;
+        const fillWidth = Math.min(barWidth * progress, barWidth);
+        
+        // Update bar position to follow player
+        this.reloadBarBg.x = this.player.sprite.x;
+        this.reloadBarBg.y = this.player.sprite.y - 60 * window.gameScale;
+        
+        this.reloadBarFill.x = this.player.sprite.x - barWidth/2;
+        this.reloadBarFill.y = this.player.sprite.y - 60 * window.gameScale;
+        this.reloadBarFill.width = fillWidth;
+        
+        // Update text position
+        if (this.reloadBarText) {
+            this.reloadBarText.x = this.player.sprite.x;
+            this.reloadBarText.y = this.player.sprite.y - 60 * window.gameScale - 5 * window.gameScale;
+        }
+        
+        // Change color based on progress
+        if (progress < 0.3) {
+            this.reloadBarFill.fillColor = 0xff0000; // Red
+        } else if (progress < 0.7) {
+            this.reloadBarFill.fillColor = 0xffff00; // Yellow
+        } else {
+            this.reloadBarFill.fillColor = 0x00ff00; // Green
+        }
+    }
 
-        this.tweens.add({
-            targets: reloadBar,
-            width: barWidth,
-            duration: totalReloadTime,
-            ease: 'Linear',
-            onComplete: () => {
-                reloadBarBg.destroy();
-                reloadBar.destroy();
-            }
-        });
-
-        this.time.delayedCall(totalReloadTime, () => {
-            w.ammo = w.magazineSize;
-            w.reloading = false;
-            this.events.removeListener('postupdate', updateBarPosition);
-            if (typeof this.updateHUD === 'function') this.updateHUD();
-        });
+    destroyReloadBar() {
+        if (this.reloadBarBg) {
+            this.reloadBarBg.destroy();
+            this.reloadBarBg = null;
+        }
+        
+        if (this.reloadBarFill) {
+            this.reloadBarFill.destroy();
+            this.reloadBarFill = null;
+        }
+        
+        if (this.reloadBarText) {
+            this.reloadBarText.destroy();
+            this.reloadBarText = null;
+        }
+        
+        if (this.reloadTween) {
+            this.reloadTween.stop();
+            this.reloadTween = null;
+        }
     }
 
     handleBulletEnemyCollision(bullet, enemySprite) {
@@ -510,10 +905,11 @@ class TestLevel extends Phaser.Scene {
             this.sound.play(isKillingBlow ? 'bullet_hit_kill' : 'bullet_hit', { volume: this.audioVolume });            // Track kills if this is a killing blow
             if (isKillingBlow) {
                 window.playerStats.incrementKills();
-                
-                // 30% chance to spawn a coin
+                  // 30% chance to spawn a coin
                 if (Math.random() < 0.3) {
-                    const coin = this.createFloatingItem(enemySprite.x, enemySprite.y, 'item_coin', 'coin', 32);
+                    // Scale the coin size according to gameScale
+                    const coinSize = 64 * window.gameScale;
+                    const coin = this.createFloatingItem(enemySprite.x, enemySprite.y, 'item_coin', 'coin', coinSize);
                 }
             }
 
@@ -524,16 +920,16 @@ class TestLevel extends Phaser.Scene {
             bullet.setVisible(false);
             bullet.body.enable = false;
         }
-    }
-
-    handlePlayerEnemyCollision(playerSprite, enemySprite) {
+    }    handlePlayerEnemyCollision(playerSprite, enemySprite) {
         let enemyObj = enemySprite.enemyRef;
         if (enemyObj && enemyObj.alive) {
+            // Scale knockback distance according to gameScale
+            const knockbackDistance = 60 * window.gameScale;
             const knockbackVec = new Phaser.Math.Vector2(
                 enemySprite.x - playerSprite.x,
                 enemySprite.y - playerSprite.y
-            ).normalize().scale(60);            
-            enemyObj.takeDamage(0, { x: knockbackVec.x, y: knockbackVec.y, duration: 400 });            
+            ).normalize().scale(knockbackDistance);            
+            enemyObj.takeDamage(0, { x: knockbackVec.x, y: knockbackVec.y, duration: 400 });
             if (!this.player.isInvulnerable) {
                 this.sound.play('bullet_hit', { volume: this.audioVolume });
             }
@@ -703,7 +1099,6 @@ class TestLevel extends Phaser.Scene {
         let enemy = new Enemy(this, ex, ey, null);
         this.enemies.push(enemy);
         this.enemyGroup.add(enemy.sprite);
-        this.children.bringToTop(enemy.sprite);
         enemy.sprite.setAlpha(1);
         
         // Set player reference after a frame
@@ -711,66 +1106,52 @@ class TestLevel extends Phaser.Scene {
             enemy.playerRef = this.player.sprite;
             this.player.sprite.playerRef = this.player;
         });
-    }
-
-    showDamageNumber(x, y, amount) {
-        const text = this.add.text(x, y - 40, `-${amount}`, {
-            font: '20px Arial',
+    }    showDamageNumber(x, y, amount) {
+        // Scale text size and positioning based on game scale
+        const fontSize = Math.round(20 * window.gameScale);
+        const floatDistance = 40 * window.gameScale;
+        const floatAnimation = 32 * window.gameScale;
+        const strokeThickness = Math.max(1, Math.round(3 * window.gameScale));
+        
+        const text = this.add.text(x, y - floatDistance, `-${amount}`, {
+            font: `${fontSize}px Arial`,
             fill: '#ffffff',
             stroke: '#000',
-            strokeThickness: 3,
+            strokeThickness: strokeThickness,
             fontStyle: 'bold'
         }).setOrigin(0.5, 1).setDepth(1500);
 
         this.tweens.add({
             targets: text,
-            y: text.y - 32,
+            y: text.y - floatAnimation,
             alpha: 0,
             duration: 600,
             ease: 'Cubic.Out',
             onComplete: () => text.destroy()
         });
-    }
-
-    showPickupText(x, y, message, color) {
-        const text = this.add.text(x, y - 60, message, {
-            font: '32px Arial',
+    }    showPickupText(x, y, message, color) {
+        // Scale text size and positioning based on game scale
+        const fontSize = Math.round(32 * window.gameScale);
+        const floatDistance = 60 * window.gameScale;
+        const floatAnimation = 40 * window.gameScale;
+        const strokeThickness = Math.max(1, Math.round(3 * window.gameScale));
+        
+        const text = this.add.text(x, y - floatDistance, message, {
+            font: `${fontSize}px Arial`,
             fill: color,
             stroke: '#000',
-            strokeThickness: 3,
+            strokeThickness: strokeThickness,
             fontStyle: 'bold'
         }).setOrigin(0.5, 1).setDepth(2000);
 
         this.tweens.add({
             targets: text,
-            y: text.y - 40,
+            y: text.y - floatAnimation,
             alpha: 0,
             duration: 2500,
             ease: 'Cubic.Out',
             onComplete: () => text.destroy()
         });
-    }
-
-    toggleEnemySpawner() {
-        this.enemySpawningEnabled = !this.enemySpawningEnabled;
-        
-        if (this.enemySpawningEnabled) {
-            this.enemySpawnerEvent = this.time.addEvent({
-                delay: 1000,
-                loop: true,
-                callback: () => {
-                    const n = Phaser.Math.Between(1, 3);
-                    this.spawnEnemiesAroundPlayer(n);
-                }
-            });
-            this.showMessage('Enemy Spawning: ON', '#ff6666');
-        } else {
-            if (this.enemySpawnerEvent) {
-                this.enemySpawnerEvent.remove(false);
-            }
-            this.enemySpawnerEvent = null;
-            this.showMessage('Enemy Spawning: OFF', '#cccccc');
-        }
     }
 
     spawnEnemiesAroundPlayer(num) {
@@ -791,7 +1172,6 @@ class TestLevel extends Phaser.Scene {
             let enemy = new Enemy(this, ex, ey, this.player.sprite);
             this.enemies.push(enemy);
             this.enemyGroup.add(enemy.sprite);
-            this.children.bringToTop(enemy.sprite);
             enemy.sprite.setAlpha(1);
         }
     }
@@ -813,18 +1193,21 @@ class TestLevel extends Phaser.Scene {
         });
     }
 
-    // Item spawn helper methods
+    // Item spawn helper methods    
     createFloatingItem(x, y, spriteKey, itemType, size = 64) {
-        const itemScale = 0.8; // 20% smaller
-        const scaledSize = size * itemScale;
         const item = this.add.sprite(x, y, spriteKey);
+        // Apply gameScale to item size
+        const scaledSize = size * window.gameScale;
         item.setDisplaySize(scaledSize, scaledSize);
         this.itemGroup.add(item);
         this.children.bringToTop(item);
         
+        // Set depth to be in the game objects/items range (100-499)
+        item.setDepth(200);
+        
         this.tweens.add({
             targets: item,
-            y: item.y - 10,
+            y: item.y - (10 * window.gameScale), // Scale bob height by gameScale
             duration: 1000,
             yoyo: true,
             repeat: -1,

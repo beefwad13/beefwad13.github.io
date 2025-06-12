@@ -3,20 +3,21 @@
 
 class Enemy {
     constructor(scene, x, y, playerRef) {
-        this.scene = scene;
-        this.health = 3;
+        this.scene = scene;        this.health = 3;
         this.damage = 25; // Base damage dealt to player on collision
         this.sprite = scene.add.sprite(x, y, 'enemy_demon', 0);
-        this.spriteScale = 0.8; // 20% smaller
-        const baseWidth = 70;
-        const baseHeight = 128;
-        this.sprite.setDisplaySize(baseWidth * this.spriteScale, baseHeight * this.spriteScale);
+        // Apply gameScale to enemy size
+        const scaledWidth = 70 * window.gameScale;
+        const scaledHeight = 128 * window.gameScale;
+        this.sprite.setDisplaySize(scaledWidth, scaledHeight);
+        // Set enemy depth in the enemies range (500-899)
+        this.sprite.setDepth(600);
         scene.physics.add.existing(this.sprite);
         this.sprite.body.setCollideWorldBounds(true);
         this.sprite.enemyRef = this; // Reference for callbacks
         this.alive = true;
         this.playerRef = playerRef; // Reference to player sprite
-        this.speed = 120;
+        this.speed = 120 * window.gameScale;
         // Knockback state
         this.isKnockback = false;
         this.knockbackTimer = 0;
