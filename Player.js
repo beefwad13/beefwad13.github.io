@@ -142,10 +142,13 @@ class Player {    constructor(scene, x, y) {
             duration: 1500,
             ease: 'Cubic.Out',
             onComplete: () => levelUpText.destroy()
-        });        // Launch upgrade dialog scene
+        });
+        
+        // Launch upgrade dialog scene with player reference
         this.scene.scene.launch('UpgradeDialog', { playerRef: this, parentScene: this.scene });
         this.scene.scene.pause('TestLevel');
-    }    applyUpgrade(upgrade) {
+    }    
+    applyUpgrade(upgrade) {
         switch (upgrade.id) {
             case 'health':
                 this.stats.maxHealth += 5;

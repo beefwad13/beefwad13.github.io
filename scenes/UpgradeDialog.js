@@ -211,28 +211,37 @@ class UpgradeDialog extends Phaser.Scene {
     }
     
     applyStatsUpgrade(upgrade) {
-        // Apply stats upgrades to player
-        const playerStats = window.playerStats;
+        // Get the player reference from the data passed when launching this scene
+        const playerRef = this.scene.settings.data?.playerRef;
         
-        switch (upgrade.id) {
-            case 'health':
-                playerStats.maxHealth += 5;
-                playerStats.health = Math.min(playerStats.health + 5, playerStats.maxHealth);
-                break;
-            case 'armor':
-                playerStats.maxArmor += 5;
-                playerStats.armor = Math.min(playerStats.armor + 5, playerStats.maxArmor);
-                break;
-            case 'stamina':
-                playerStats.maxStamina += 5;
-                playerStats.stamina = playerStats.maxStamina; // Refill stamina
-                break;
-            // Handle any other stats upgrades
+        if (playerRef && typeof playerRef.applyUpgrade === 'function') {
+            // Call the player's applyUpgrade method directly
+            playerRef.applyUpgrade(upgrade);
+        } else {
+            // Fallback to previous implementation using playerStats global
+            const playerStats = window.playerStats;
+            
+            switch (upgrade.id) {
+                case 'health':
+                    playerStats.maxHealth += 5;
+                    playerStats.health = Math.min(playerStats.health + 5, playerStats.maxHealth);
+                    break;
+                case 'armor':
+                    playerStats.maxArmor += 5;
+                    playerStats.armor = Math.min(playerStats.armor + 5, playerStats.maxArmor);
+                    break;
+                case 'stamina':
+                    playerStats.maxStamina += 5;
+                    playerStats.stamina = playerStats.maxStamina; // Refill stamina
+                    break;
+                // Handle any other stats upgrades
+            }
         }
     }
     
     applyWeaponUpgrade(upgrade) {
-        // Apply weapon upgrades
+        // The weapon upgrades might not need player reference since they modify global WEAPONS
+        // This can remain largely the same as before
         const weapon = window.WEAPONS[upgrade.weaponIndex];
         
         if (!weapon) return;
@@ -248,11 +257,14 @@ class UpgradeDialog extends Phaser.Scene {
             const currentValue = weapon[upgrade.upgradeType];
             const increment = upgrade.increment || 1;
             
-            weapon[upgrade.upgradeType] = currentValue + increment;
+            // Use the same logic from Player.applyUpgrade for weapon upgrades
+            weapon[upgrade.upgradeType] = upgrade.isReverse ? 
+                Math.max(upgrade.maxValue, currentValue + increment) :
+                Math.min(upgrade.maxValue, currentValue + increment);
             
             // If this is an ammo-related upgrade, also update current ammo
             if (upgrade.upgradeType === 'magazineSize') {
-                weapon.ammo = weapon.magazineSize;
+                weapon.ammo = Math.min(weapon.ammo + increment, weapon.magazineSize);
             }
         }
     }
